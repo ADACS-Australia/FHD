@@ -15,8 +15,8 @@ def histogram(data, bin_size = 1, num_bins = None, min = None, max = None, omin 
     This histogram function will replicate the IDL Histogram function
     Its different from NumPy as it separates the number of bins and bin size
     with different behaviour for both. It also returns the indices of the histogram. 
-    this function is more of a wrapper function for np.histogram, np.digitize and
-    np.histogram_bin_edges
+    this function is more of a wrapper function for np.histogram and
+    np.histogram_bin_edges. However, its behaviour is not the same as np.histogram.
 
     Parameters
     ----------
@@ -73,26 +73,29 @@ def histogram(data, bin_size = 1, num_bins = None, min = None, max = None, omin 
         (min is not None and omax is not None and min > omax) or \
         (omin is not None and max is not None and omin > max):
         raise ValueError("Your minimum is higher than your maximum, check your min and max and/or check your omin and omax")
-    # If the minimum has been set, set it
+    # If the minimum has not been set, set it
     if min is None:
         min = np.min(data)
-    # If the maximum has been set, set it
+    # If the maximum has not been set, set it
     if max is None:
         max = np.max(data)
+    # If the number of bins has been set use that
+    if num_bins is not None:
+        bins = num_bins
     # If the bin_size is 1 make it consistent with IDL
-    if bin_size == 1:
-        bins = np.arange(min, max + 2)
-    # Else everything should be fine...hopefully
+    elif bin_size == 1:
+        # This ensures the last bin edge matches what IDL does
+        bins = np.append(np.arange(min, max + 1), max)
+    # Else bin_size isn't 1, so use that to create the bins
     else:
-        num_len = np.arange(min, max)
-        bins = np.histogram_bin_edges(data, range=(min, max))
+        # Use the bin size as the step and add max to the end to get the expected behaviour
+        bins = np.arange(min, max + 1, bin_size)
+        bins = np.append(bins, max)
+    #Now if omin or omax has been set, adjust the first or last bin edge
     if omin is not None:
         bins[0] = omin
     if omax is not None:
-        if bin_size == 1:
-            bins[-2] == omax
-        else:
-            bins[-1] = omax
+        bins[-2] = omax
     hist, bin_edges = np.histogram(data, bins = bins)
     # As we purposely added a bin to get the same behaviour as IDL remove it now 
     bin_edges = bin_edges[:-1]
@@ -118,9 +121,12 @@ def histogram(data, bin_size = 1, num_bins = None, min = None, max = None, omin 
     # Add the first index to the first vector
     first_vector = np.append(first_vector, np.array([index]))
     # Loops through bin_edges array
-    for bin in bin_edges:
+    for bin in range(len(bin_edges)):
         # Get an array of all the occurences
-        indexes_for_bin = np.where(data.flatten() == bin)
+        if bin == len(bin_edges) - 1:
+            indexes_for_bin = np.where((data.flatten() >= bin_edges[bin]) & (data.flatten() <= max))
+        else:
+            indexes_for_bin = np.where((data.flatten() >= bin_edges[bin]) & (data.flatten() < bin_edges[bin + 1]))
         # Add the found bin values indexes to the second vector 
         second_vector = np.append(second_vector, indexes_for_bin)
         # We now need to update where to find the second vector index values
