@@ -1,15 +1,5 @@
 import numpy as np
 
-"""
->>> data= np.array([[ -5,   4,   2,  -8,   1],
-                    [  3,   0,   5,  -5,   1],
-                    [  6,  -7,   4,  -4,  -8],
-                    [ -1,  -5, -14,   2,   1]])
->>> histogram(data)
-(array([1, 0, 0, 0, 0, 0, 2, 1, 0, 3, 1, 0, 0, 1, 1, 3, 2, 1, 2, 1, 1]), array([22, 23, 23, 23, 23, 23, 23, 25, 26, 26, 29, 30, 30, 30, 31, 32, 35,
-       37, 38, 40, 41, 42, 17,  3, 14, 11,  0,  8, 16, 13, 15,  6,  4,  9,
-       19,  2, 18,  5,  1, 12,  7, 10]))
-"""
 def histogram(data, bin_size = 1, num_bins = None, min = None, max = None) :
     """
     This histogram function will replicate the IDL Histogram function
@@ -51,7 +41,7 @@ def histogram(data, bin_size = 1, num_bins = None, min = None, max = None) :
                         [  3,   0,   5,  -5,   1],
                         [  6,  -7,   4,  -4,  -8],
                         [ -1,  -5, -14,   2,   1]])
-    >>> hist, indices = histogram(data)
+    >>> hist, bins, indices = histogram(data)
     >>> print(hist)
     [1, 0, 0, 0, 0, 0, 2, 1, 0, 3, 1, 0, 0, 1, 1, 3, 2, 1, 2, 1, 1]
     >>> print(indices)
