@@ -13,7 +13,7 @@ def test_idl_example() :
                     [  6,  -7,   4,  -4,  -8],
                     [ -1,  -5, -14,   2,   1]])
 
-    hist, indices = histogram(data)
+    hist, _, indices = histogram(data)
     # Set the expected
     expected_hist = np.array([1, 0, 0, 0, 0, 0, 2, 1, 0, 3, 1, 0, 0, 1, 1, 3, 2, 1, 2, 1, 1]) 
     expected_indices = np.array([22, 23, 23, 23, 23, 23, 23, 25, 26, 26, 29, 30, 30, 30, 31, 32, 35,
@@ -30,7 +30,7 @@ def test_one_hundred_nums():
     Should produce two bins.
     """
     data = np.arange(100)
-    hist, indices = histogram(data, bin_size = 50)
+    hist, _, indices = histogram(data, bin_size = 50)
     expected_hist = np.array([50, 50])
     expected_indices = np.array([3, 53, 103] + list(range(100)))
     assert np.array_equal(hist, expected_hist)
@@ -39,7 +39,7 @@ def test_one_hundred_nums():
 def test_one_hundred_ten_bins():
     data = np.arange(100)
     # This is to show that bin_size is ignored when num_bins is used
-    hist, indices = histogram(data, num_bins = 10, bin_size=1000)
+    hist, _, indices = histogram(data, num_bins = 10, bin_size=1000)
     expected_hist = np.ones(10) * 10
     expected_indices = np.array(list(range(11,121, 10)) + list(range(100)))
     assert np.array_equal(hist, expected_hist)
@@ -47,8 +47,7 @@ def test_one_hundred_ten_bins():
 
 def test_min():
     data = np.arange(100)
-    # This is to show that bin_size is ignored when num_bins is used
-    hist, indices = histogram(data, bin_size = 10, min = 10)
+    hist, _, indices = histogram(data, bin_size = 10, min = 10)
     expected_hist = np.ones(9) * 10
     expected_indices = np.array(list(range(10,110, 10)) + list(range(10,100)))
     assert np.array_equal(hist, expected_hist)
@@ -56,18 +55,27 @@ def test_min():
 
 def test_max():
     data = np.arange(100)
-    # This is to show that bin_size is ignored when num_bins is used
-    hist, indices = histogram(data, bin_size = 10, max = 50)
+    hist, _, indices = histogram(data, bin_size = 10, max = 50)
     expected_hist = np.append(np.ones(5) * 10, 1)
-    expected_indices = np.array(list(range(7,67, 10)) + [57] + list(range(0,51)))
+    expected_indices = np.array(list(range(7,67, 10)) + [58] + list(range(0,51)))
     assert np.array_equal(hist, expected_hist)
     assert np.array_equal(indices, expected_indices)
 
 def test_min_max():
     data = np.arange(100)
-    # This is to show that bin_size is ignored when num_bins is used
-    hist, indices = histogram(data, bin_size = 10, min = 10, max = 55)
+    hist, _, indices = histogram(data, bin_size = 10, min = 10, max = 55)
     expected_hist = np.append(np.ones(4) * 10, 6)
-    expected_indices = np.array(list(range(5, 55, 10)) + list(range(10,56)))
+    expected_indices = np.array(list(range(6, 56, 10)) + [52] + list(range(10,56)))
     assert np.array_equal(hist, expected_hist)
     assert np.array_equal(indices, expected_indices)
+
+def test_one_max():
+    data = np.arange(100)
+    hist, _, indices = histogram(data, max = 55)
+    expected_hist = np.ones(56) 
+    start = np.size(expected_hist) + 1
+    expected_indices = np.array(list(range(start, start * 2)) + list(range(0,start - 1)))
+    assert np.array_equal(hist, expected_hist)
+    assert np.array_equal(indices, expected_indices)
+
+# TODO: Add more tests based on the data given by Nichole

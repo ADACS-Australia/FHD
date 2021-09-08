@@ -10,7 +10,7 @@ import numpy as np
        37, 38, 40, 41, 42, 17,  3, 14, 11,  0,  8, 16, 13, 15,  6,  4,  9,
        19,  2, 18,  5,  1, 12,  7, 10]))
 """
-def histogram(data, bin_size = 1, num_bins = None, min = None, max = None, omin = None, omax = None) :
+def histogram(data, bin_size = 1, num_bins = None, min = None, max = None) :
     """
     This histogram function will replicate the IDL Histogram function
     Its different from NumPy as it separates the number of bins and bin size
@@ -34,17 +34,13 @@ def histogram(data, bin_size = 1, num_bins = None, min = None, max = None, omin 
         Set a minimum value the histogram should look from
     max: float, optional
         Set a maximum value the histogram should look at
-    omin: float, optional
-        Set the exact starting location of the first bin in the histogram
-    omax: float, optional
-        Set the exact starting location of the last bin in the histogram
 
     Returns
     -------
     hist: ndarray, dtype is int
         The values/counts of the histogram
     bin_edges: ndarray, dtype is float
-        The edges if each bin
+        The edges of each bin
     indices: ndarray, dtype is int
         An ndarray of the same shape as data
         containing the indexes of each value from bin edges
@@ -68,10 +64,7 @@ def histogram(data, bin_size = 1, num_bins = None, min = None, max = None, omin 
         Get's raised if any of the values are not compatible with each other.
     """
     # Do the error checks
-    if (min is not None and max is not None and min > max) or \
-        (omin is not None and omax is not None and omin > omax) or \
-        (min is not None and omax is not None and min > omax) or \
-        (omin is not None and max is not None and omin > max):
+    if (min is not None and max is not None and min > max) :
         raise ValueError("Your minimum is higher than your maximum, check your min and max and/or check your omin and omax")
     # If the minimum has not been set, set it
     if min is None:
@@ -91,11 +84,6 @@ def histogram(data, bin_size = 1, num_bins = None, min = None, max = None, omin 
         # Use the bin size as the step and add max to the end to get the expected behaviour
         bins = np.arange(min, max + 1, bin_size)
         bins = np.append(bins, max)
-    #Now if omin or omax has been set, adjust the first or last bin edge
-    if omin is not None:
-        bins[0] = omin
-    if omax is not None:
-        bins[-2] = omax
     hist, bin_edges = np.histogram(data, bins = bins)
     # As we purposely added a bin to get the same behaviour as IDL remove it now 
     bin_edges = bin_edges[:-1]
@@ -110,6 +98,12 @@ def histogram(data, bin_size = 1, num_bins = None, min = None, max = None, omin 
     This method can likely be optimized through:
         - Reducing memory use by using the one array which also reduces calls to append
           increase the performance of the function. It will also remove the need to concatenate.
+          Which with large arrays will likely be a huge cost
+        - At some point SciPy's Sparse Matrices may be useful depending on the data
+        - If we do replace this with np.digitize at some point, we either need a fast way
+          to use the results of digitize to apply the results to a particular bin (which is what
+          REVERSE_INDICES does very well) or a fast way to convert np.digitize to the same format
+          as REVERSE_INDICES.
     '''
     # Initialise our two vectors
     # The first keeps track of the indexes in the second vector
@@ -138,5 +132,5 @@ def histogram(data, bin_size = 1, num_bins = None, min = None, max = None, omin 
     # data[indices[indices[I] : indices[i+1]-1]] is used to access the actual bin value from the data array
     indices = np.concatenate([first_vector, second_vector])
 
-    #Return histogram and the indices
-    return hist, indices
+    #Return histogram, bin_edges and the indices
+    return hist, bin_edges, indices
