@@ -55,7 +55,7 @@ def histogram(data, bin_size = 1, num_bins = None, min = None, max = None) :
     """
     # Do the error checks
     if (min is not None and max is not None and min > max) :
-        raise ValueError("Your minimum is higher than your maximum, check your min and max and/or check your omin and omax")
+        raise ValueError("Your minimum is higher than your maximum, check your min and max")
     # If the minimum has not been set, set it
     if min is None:
         min = np.min(data)
@@ -83,7 +83,7 @@ def histogram(data, bin_size = 1, num_bins = None, min = None, max = None) :
     an array which has two vectors, it should be of size len(hist) + np.size(data) + 1.
     The first vector of size len(hist) contains the indexes for later in the
     array (i.e. the array references itself). The second vector of np.size(data)
-    contains all the indexes where the bins occured in the data. 
+    contains all the indexes where the bins occurred in the data. 
 
     This method can likely be optimized through:
         - Reducing memory use by using the one array which also reduces calls to append
@@ -98,27 +98,29 @@ def histogram(data, bin_size = 1, num_bins = None, min = None, max = None) :
     # Initialise our two vectors
     # The first keeps track of the indexes in the second vector
     first_vector = np.array([], dtype = int)
-    # This keeps track of all the occurences of the bins in the data (when flattened)
+    # This keeps track of all the occurrences of the bins in the data (when flattened)
     second_vector = np.array([], dtype = int)
+    # We used len(bin_edges) a lot, let's just store it
+    bin_len = len(bin_edges)
     #Get the current index
-    index  = np.size(bin_edges) + 1
+    index  = bin_len + 1
     # Add the first index to the first vector
     first_vector = np.append(first_vector, np.array([index]))
     # Loops through bin_edges array
-    for bin in range(len(bin_edges)):
-        # Get an array of all the occurences
-        if bin == len(bin_edges) - 1:
-            indexes_for_bin = np.where((data.flatten() >= bin_edges[bin]) & (data.flatten() <= max))
+    for bin in range(bin_len):
+        # Get an array of all the occurrences
+        if bin == bin_len - 1:
+            indexes_for_bin = np.where((data.flatten() >= bin_edges[bin]) & (data.flatten() <= max))[0]
         else:
-            indexes_for_bin = np.where((data.flatten() >= bin_edges[bin]) & (data.flatten() < bin_edges[bin + 1]))
+            indexes_for_bin = np.where((data.flatten() >= bin_edges[bin]) & (data.flatten() < bin_edges[bin + 1]))[0]
         # Add the found bin values indexes to the second vector 
         second_vector = np.append(second_vector, indexes_for_bin)
         # We now need to update where to find the second vector index values
-        index += np.size(indexes_for_bin)
+        index += len(indexes_for_bin)
         # Add the updated value to the first index
         first_vector = np.append(first_vector, np.array([index]))
     # Concatenate the first and second vector
-    # The first len(hist) values now reference indexes within the same array
+    # The first np.size(hist) values now reference indexes within the same array
     # data[indices[indices[I] : indices[i+1]-1]] is used to access the actual bin value from the data array
     indices = np.concatenate([first_vector, second_vector])
 

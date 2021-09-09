@@ -1,18 +1,6 @@
 import numpy as np
 import datetime
 
-"""
-This is the doctest, include basic ones here, add more complicated ones in separate file
-
->>> visibility_grid()
-Test1
-
->>> visibility_grid()
-Test2
-
->>> visibility_grid()
-Test3
-"""
 def visibility_grid(visibility, vis_weights, obs, status_str, psf, params,
                     file_path_fhd= "/.", weights = False, variance = False, polarization = 0,
                     mapfn_recalculate = False, uniform_filter = False, fi_use = [],
@@ -30,7 +18,7 @@ def visibility_grid(visibility, vis_weights, obs, status_str, psf, params,
 
     visibility: Type
         Pointer in IDL, Description to be added
-    vis_weights: numpy.ndarray
+    vis_weights: array
         An array of visibility weights
     obs: dict
         Contains options which set behaviour in the function
@@ -44,7 +32,7 @@ def visibility_grid(visibility, vis_weights, obs, status_str, psf, params,
     Returns
     -------
     image_uv : Type
-        Description goes here
+        TODO: Description goes here
 
     Examples
     --------
@@ -59,7 +47,7 @@ def visibility_grid(visibility, vis_weights, obs, status_str, psf, params,
     """
     # Get the current time
     t0_0 = datetime.now()
-    # timing shouldnt be a keyword or parameter
+    # timing shouldn't be a keyword or parameter
     timing = 0
 
     # Obs is a dictionary
@@ -68,7 +56,6 @@ def visibility_grid(visibility, vis_weights, obs, status_str, psf, params,
     elements = int(obs['elements'])
     kbinsize = obs['kpix']
     n_vis_arr = obs['nf_vis']
-    # They specify float here should be no need
     # Units are in number of wavelengths
     kx_span = kbinsize * dimension
     ky_span = kx_span
@@ -86,13 +73,13 @@ def visibility_grid(visibility, vis_weights, obs, status_str, psf, params,
     if len(fi_use) == 0:
         #Get all non zeros from the list
         fi_use = np.nonzero(obs['baseline_info']['freq_use'])
-    # Then use that list to access only the freq_bin_i we want
-    freq_bin_i = [freq_bin_i[i] for i in fi_use]
+    # Use the fi_use numpy array as indexes for freq_bin_i
+    freq_bin_i = freq_bin_i[fi_use]
     n_freq = obs['n_freq']
         
     # Also what's the default for bi_use?
     if len(bi_use) == 0:
-        # If the data is being gridded separatedly for the even/odd time samples, then force
+        # If the data is being gridded separately for the even/odd time samples, then force
         # flagging to be consistent across even/odd sets
             flag_test=np.sum(vis_weights, where=vis_weights > 0.1)
             bi_use = np.where(flag_test > 0, flag_test)
@@ -126,7 +113,7 @@ def visibility_grid(visibility, vis_weights, obs, status_str, psf, params,
     # polarization, freq_bin_i and bi_use might need to be an array or list
     group_arr = np.squeeze(psf['id'][polarization, freq_bin_i[fi_use], bi_use])
     # We may need a way to make python read a pointer here, or in other areas too.
-    # Either that or we see if a dictonary can be used instead.
+    # Either that or we see if a dictionary can be used instead.
     beam_arr = psf['beam_ptr']
     
     uu = params['uu'][bi_use]
@@ -197,7 +184,7 @@ def visibility_grid(visibility, vis_weights, obs, status_str, psf, params,
 
     x = y = (np.arange(dimension) - (dimension / 2)) * obs['kpix']
 
-    # Pixel number offet per baseline for each uv-box subset 
+    # Pixel number offset per baseline for each uv-box subset 
     x_offset = (np.floor((xcen - np.floor(xcen))*psf_resolution) % psf_resolution).astype(int)
     y_offset = (np.floor((ycen - np.floor(ycen))*psf_resolution) % psf_resolution).astype(int)
     # Derivatives from pixel edge to baseline center for use in interpolation
