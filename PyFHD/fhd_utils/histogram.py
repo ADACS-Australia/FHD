@@ -94,6 +94,7 @@ def histogram(data, bin_size = 1, num_bins = None, min = None, max = None) :
           to use the results of digitize to apply the results to a particular bin (which is what
           REVERSE_INDICES does very well) or a fast way to convert np.digitize to the same format
           as REVERSE_INDICES.
+        - Basically we just need a way to vectorize the code below
     '''
     # Initialise our two vectors
     # The first keeps track of the indexes in the second vector

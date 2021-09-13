@@ -458,6 +458,25 @@ def visibility_grid(visibility, vis_weights, obs, status_str, psf, params,
     # We may have to, but also Python usually handles itself
 
     if map_flag:
-        
-        
+        # TODO: holo_mapfn_convert
+        # TODO: fhd_save_io
+        # TODO: Find a way to return map function
+        pass
+    if grid_spectral:
+        spectral_uv = weight_invert(spectral_D - spectral_B ** 2) * (image_uv * spectral_B * spectral_A - n_vis)
+    if grid_uniform:
+        filter_use = None # TODO: weight_invert(uniform_filter, 1)
+        wts_i = np.where(filter_use)
+        if np.size(wts_i) > 0:
+            filter_use /= np.mean(filter_use[wts_i])
+        else:
+            filter_use /= np.mean(filter_use)
+        # TODO: image_uv *= weight_invert(filter_use)
+        if weights_flag: 
+            pass # TODO: weights *= weight_invert(filter_use)
+        if variance_flag:
+            pass # TODO: variance *= weight_invert(filter_use)
+        if model_flag:
+            pass # TODO: model *= weight_invert(filter_use)
+
 
