@@ -1,6 +1,30 @@
 import numpy as np
 
 def weight_invert(weights, threshold = None, abs = False):
+    """
+    The weights invert function cleans the weights given by removing
+    the values that are 0, NaN or Inf ready for additional calculation.
+    If a threshold is set, then we check the values that match the threshold
+    instead of checking for zeros.
+
+    Parameters
+    ----------
+    weights: array
+        An array of values of some dtype
+    threshold: int/float, optional
+        A real number set as the threshold for the array.
+        By default its set to None, in this case function checks
+        for zeros.
+    abs: bool, optional
+        Set to False by default. When True, weights are compared against
+        threshold or search for zeros using absolute values.
+
+    Returns
+    -------
+    result: array
+        The weights array that has had NaNs and Infinities removed, and zeros OR
+        values that don't meet the threshold.
+    """
     result = np.zeros(np.max(np.shape[0], 1), dtype = weights.dtype)
     # If we're told to use absolute values then create a copy of weights with absolute values
     if abs:
