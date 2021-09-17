@@ -9,17 +9,36 @@ def rebin(a, shape):
     a : array_like
         Input array.
     new_shape : tuple of int
-        Shape of the output array
+        Shape of the output array in (rows, columns)
+        Must be a factor or multiple of a.shape
         
     Returns
     -------
-    rebinned_array : ndarray
+    rebinned : ndarray
         If the new shape is smaller of the input array, the data are averaged, 
-        if the new shape is bigger array elements are repeated
+        if the new shape is bigger array elements are repeated and interpolated
 
     Examples
     --------
-    
+    >>> test = np.array([0,10,20,30])
+    >>> rebin(test, (1,8))
+    >>> array([ 0,  5, 10, 15, 20, 25, 30, 30])
+    >>> rebin(test, (2,8))
+    >>> array([[ 0,  5, 10, 15, 20, 25, 30, 30],
+               [ 0,  5, 10, 15, 20, 25, 30, 30]])
+    >>> data = np.array([[ -5,   4,   2,  -8,   1],
+                         [  3,   0,   5,  -5,   1],
+                         [  6,  -7,   4,  -4,  -8],
+                         [ -1,  -5, -14,   2,   1]])
+    >>> rebin(data, (8,10))
+    >>> array([[ -3,   0,   2,   2,   1,  -2,  -6,  -2,   1,   1],
+               [  0,   0,   1,   2,   2,  -1,  -5,  -1,   1,   1],
+               [  2,   0,   0,   1,   3,   0,  -4,  -1,   0,   0],
+               [  3,   0,  -3,   0,   3,   0,  -4,  -3,  -3,  -3],
+               [  4,   0,  -5,  -1,   2,   0,  -3,  -5,  -7,  -7],
+               [  1,  -1,  -5,  -5,  -5,  -2,  -1,  -2,  -3,  -3],
+               [ -1,  -3,  -5,  -9, -13,  -5,   1,   1,   1,   1],
+               [ -1,  -3,  -5,  -9, -13,  -5,   1,   1,   1,   1]])
 
     References
     ----------
@@ -29,13 +48,15 @@ def rebin(a, shape):
     if len(old_shape) == 1:
         old_shape = (1,old_shape[0])
     # If we are downsizing
-    if shape[0] < old_shape[0]:
+    if shape[0] < old_shape[0] or shape[1] < old_shape[1]:
         if old_shape[0] % shape[0] != 0 or old_shape[1] % shape[1] != 0:
             raise ValueError("Your new shape should be a factor of the original shape")
         sh = shape[0], old_shape[0] // shape[0], shape[1], old_shape[1] // shape[1]
         rebinned = np.reshape(a, sh)
         rebinned = rebinned.mean(-1)
         rebinned = rebinned.mean(1)
+        if (shape[0] == 1):
+            rebinned = rebinned[0]
     # Otherwise we are expanding
     else:
         if shape[0] % old_shape[0] != 0 or shape[1] % old_shape[1] != 0:
