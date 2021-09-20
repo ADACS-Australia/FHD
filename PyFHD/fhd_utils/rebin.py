@@ -51,10 +51,18 @@ def rebin(a, shape):
     if shape[0] < old_shape[0] or shape[1] < old_shape[1]:
         if old_shape[0] % shape[0] != 0 or old_shape[1] % shape[1] != 0:
             raise ValueError("Your new shape should be a factor of the original shape")
+        # Create the shape we need (rows, rows that can fit in old_shape, cols, cols that can fit into old_shape)    
         sh = shape[0], old_shape[0] // shape[0], shape[1], old_shape[1] // shape[1]
+        # Create the 4D array
         rebinned = np.reshape(a, sh)
+        # Get the average of the columns first
         rebinned = rebinned.mean(-1)
+        # To ensure that we get the resultsame as IDL it seems to floor the values after every calculation
+        if a.dtype == "int":
+            rebinned = np.fix(rebinned).astype("int")
+        # Now get it for the rows
         rebinned = rebinned.mean(1)
+        # If we had a 1D array ensure it gets returned as a 1D array
         if (shape[0] == 1):
             rebinned = rebinned[0]
     # Otherwise we are expanding
