@@ -158,7 +158,7 @@ def visibility_grid(visibility, vis_weights, obs, status_str, psf, params,
         map_flag = False
     
     # Flag baselines on their maximum and minimum extent in the frequency range
-    dist_test=np.sqrt((kx_arr)^2 + (ky_arr) ^ 2) * kbinsize
+    dist_test=np.sqrt((kx_arr) ** 2 + (ky_arr) ** 2) * kbinsize
     dist_test_max = np.max(obs['baseline_info']['freq']) * dist_test
     dist_test_min = np.min(obs['baseline_info']['freq']) * dist_test
     flag_dist_baseline = np.where((dist_test_min < min_baseline) | (dist_test_max > max_baseline))

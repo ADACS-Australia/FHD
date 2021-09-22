@@ -124,7 +124,9 @@ def dirty_image_generate(dirty_image_uv, mask = None, baseline_threshold = 0, no
         dirty_image *= beam_ptr
     
     # If we are returning complex, make sure its complex
-    if not real:
+    if real:
+        dirty_image = dirty_image.real
+    else:
         dirty_image = dirty_image.astype("complex")
     # Normalize by the matrix given, if it was given
     if normalization is not None:
