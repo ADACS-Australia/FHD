@@ -36,5 +36,6 @@ PRO histogram_runner
 
     one_billion_floats_hist = histogram(one_billion, reverse_indices = one_billion_floats_inds)
 
+    ;Adjust the path as required on the system you're running
     SAVE, /VARIABLES, FILENAME = 'histogram.sav'
 END

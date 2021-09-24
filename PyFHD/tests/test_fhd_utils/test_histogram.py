@@ -3,6 +3,13 @@ import numpy as np
 from fhd_utils.histogram import histogram
 from scipy.io import readsav
 
+'''
+This test is designed to read a datafile in a 
+data directory inside fhd_utils. Ensure the data file
+has been made with the scripts inside the scripts directory.
+The file that has the correct tests are histogram_runner.pro
+'''
+
 def test_idl_example(shared_datadir) :
     """
     This test is based on the example from the IDL documentation.
