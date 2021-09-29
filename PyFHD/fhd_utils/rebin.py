@@ -45,12 +45,23 @@ def rebin(a, shape):
     [1] https://stackoverflow.com/a/8090605
     """
     old_shape  = a.shape
+    # Prevent more processing than needed if we want the same shape
+    if old_shape == shape:
+        return a
     if len(old_shape) == 1:
         old_shape = (1,old_shape[0])
     # If we are downsizing
     if shape[0] < old_shape[0] or shape[1] < old_shape[1]:
-        if old_shape[0] % shape[0] != 0 or old_shape[1] % shape[1] != 0:
+        if (max(old_shape[0],shape[0]) % min(old_shape[0],shape[0]) != 0) or \
+           (max(old_shape[1],shape[1]) % min(old_shape[1],shape[1]) != 0):
             raise ValueError("Your new shape should be a factor of the original shape")
+        # If we are increasing the rows, increase them now and change the old shape
+        if shape[0] > old_shape[0]:
+            a = np.tile(a, (shape[0], 1))
+            old_shape = a.shape
+        elif shape[1] > old_shape[1]:
+            a = np.tile(a, (1, shape[1]))
+            old_shape = a.shape
         # Create the shape we need (rows, rows that can fit in old_shape, cols, cols that can fit into old_shape)    
         sh = shape[0], old_shape[0] // shape[0], shape[1], old_shape[1] // shape[1]
         # Create the 4D array
@@ -58,8 +69,8 @@ def rebin(a, shape):
         # Get the average of the columns first
         rebinned = rebinned.mean(-1)
         # To ensure that we get the resultsame as IDL it seems to floor the values after every calculation
-        if a.dtype == "int":
-            rebinned = np.fix(rebinned).astype("int")
+        if np.issubdtype(a.dtype, np.integer):
+            rebinned = np.floor(rebinned).astype("int")
         # Now get it for the rows
         rebinned = rebinned.mean(1)
         # If we had a 1D array ensure it gets returned as a 1D array
@@ -105,6 +116,8 @@ def rebin(a, shape):
             inferences = np.repeat(differences, col_sizer, axis = ax) * tiles
             # Pad the inferences to get the same shape as above
             inferences = np.pad(inferences, (0,col_sizer))[:-col_sizer]
+            if np.issubdtype(a.dtype, np.integer):
+                inferences = np.floor(inferences).astype("int")
             # Add this to the original array that has been repeated to match the size of inference
             col_rebinned = inferences + np.repeat(a, col_sizer, axis = ax)
             if col_rebinned.shape == shape:
@@ -112,8 +125,6 @@ def rebin(a, shape):
                 if (shape[0] == 1):
                     rebinned = col_rebinned[0]
             else:
-                if a.dtype == "int":
-                    col_rebinned = np.fix(col_rebinned).astype("int")
                 ax = 0
                 # tile the range of row_sizer (but going down)
                 tiles = np.tile(np.array_split(np.arange(row_sizer), row_sizer), ((shape[0]- row_sizer) // row_sizer, shape[1]))
@@ -123,9 +134,8 @@ def rebin(a, shape):
                 inferences = np.repeat(differences, row_sizer, axis = ax) * tiles
                 # Pad the zeros for the last two rows, and remove the extra zeros to make inferences same shape as desired shape
                 inferences = np.pad(inferences, (0,row_sizer))[:,:-row_sizer]
+                if np.issubdtype(a.dtype, np.integer):
+                    inferences = np.floor(inferences).astype("int")
                 # Now get our final array by adding the repeat of our columns rebinned to the inferences
                 rebinned = inferences + np.repeat(col_rebinned, row_sizer, axis = ax)
-    # In IDL the result is returned as an int if the original array was an int
-    if a.dtype == "int":
-            rebinned = np.fix(rebinned).astype("int")
     return rebinned

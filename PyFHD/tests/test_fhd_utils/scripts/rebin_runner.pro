@@ -33,8 +33,12 @@ PRO rebin_runner
     test2_vertical = rebin(test2, 1, 8)
 
     test2_to_square = rebin(test2, 4, 4)
+    
+    test2_to_smaller_square = rebin(test2, 2, 2)
 
     test2_to_rect = rebin(test2, 4, 8)
+
+    test_to_smaller_rect = rebin(test, 1, 2)
 
     test2_same = rebin(test2, 1, 4)
 
@@ -43,6 +47,10 @@ PRO rebin_runner
     data_4R_15C = rebin(data, 15, 4)
 
     data_8R_10C = rebin(data, 10, 8)
+
+    data_12R_10C = rebin(data, 10, 12)
+
+    data_8R_15C = rebin(data, 15, 8)
 
     data_same = rebin(data, 5, 4)
 
