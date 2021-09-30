@@ -1,5 +1,36 @@
 import numpy as np
 
+def rebin_columns(a, ax, shape, col_sizer):
+    # tile the range of col_sizer
+    tiles = np.tile(np.arange(col_sizer), (shape[0], shape[1] // col_sizer-1))
+    # Get the differences between the  columns
+    differences = np.diff(a, axis = ax) / col_sizer
+    # Multiply this by the tiles
+    inferences_non_pad = np.repeat(differences, col_sizer, axis = ax) * tiles
+    # Pad the zeros for the last two rows, and remove the extra zeros to make inferences same shape as desired shape
+    inferences = np.pad(inferences_non_pad, (0,col_sizer))[:-col_sizer]
+    if np.issubdtype(a.dtype, np.integer):
+        inferences = np.floor(inferences).astype("int")
+    # Now get our final array by adding the repeat of our rows rebinned to the inferences
+    rebinned = inferences + np.repeat(a, col_sizer, axis = ax)
+    return rebinned
+
+def rebin_rows(a, ax, shape, old_shape, row_sizer):
+    # Tile the range of row_sizer
+    tiles = np.tile(np.array_split(np.arange(row_sizer), row_sizer), ((shape[0]- row_sizer) // row_sizer, old_shape[1]))
+    # Get the differences between values
+    differences = np.diff(a, axis = ax) / row_sizer
+    # Multiply differences array by tiles to get desired bins
+    inferences_non_pad = np.repeat(differences, row_sizer, axis = ax) * tiles
+    # Pad the inferences to get the same shape as above
+    inferences = np.pad(inferences_non_pad, (0,row_sizer))[:,:-row_sizer]
+    if np.issubdtype(a.dtype, np.integer):
+        inferences = np.floor(inferences).astype("int")
+    # Add this to the original array that has been repeated to match the size of inference
+    row_rebinned = inferences + np.repeat(a, row_sizer, axis = ax)
+    return row_rebinned
+
+
 def rebin(a, shape):
     """
     Resizes a 2d array by averaging or repeating elements, 
@@ -76,6 +107,7 @@ def rebin(a, shape):
         # If we had a 1D array ensure it gets returned as a 1D array
         if (shape[0] == 1):
             rebinned = rebinned[0]
+
     # Otherwise we are expanding
     else:
         if shape[0] % old_shape[0] != 0 or shape[1] % old_shape[1] != 0:
@@ -83,59 +115,19 @@ def rebin(a, shape):
         # Get the size changes of the row and column separately
         row_sizer = shape[0] // old_shape[0]
         col_sizer = shape[1] // old_shape[1]
-        # Check if we are expanding a single column (i.e. shape == (1,x))
-        if shape[1] == 1:
-            # Tile the range of col_sizer
-            tiles = np.tile(np.array_split(np.arange(row_sizer), row_sizer),((shape[0] - 2) // row_sizer, shape[1]))
-            # Get the differences between values
-            differences = np.diff(a, axis=0) / row_sizer
-            # Multiply differences array by tiles to get desired bins
-            inferences = np.repeat(differences, row_sizer, axis=0) * tiles
-            # Pad the inferences to get the same shape as above
-            inferences = np.array_split(np.pad(inferences, (0, row_sizer))[:, 0], shape[0])
-            # Add this to the original array that has been repeated to match the size of inference
-            rebinned = inferences + np.repeat(a, row_sizer, axis=0)
-        # Then we are expanding columns first and then rows (if there are rows to expand!)
-        else:
-            # Check if the original shape had one row, if ti does we need to change what axis we use
+        ax = 0
+        # If 1D array then do along the columns
+        if old_shape[0] == 1:
+            rebinned = rebin_columns(a, ax, shape, col_sizer)
             if shape[0] == 1:
-                # Use the rows (well row) first to get the correct columns
-                ax = 0
-            # If we have only one row, but we want to expand it to many rows and cols we need it in an array
+                rebinned = rebinned[0]
+        # Else its a 2D array
+        else:
+            row_rebinned = rebin_rows(a, ax, shape, old_shape, row_sizer)
+            # If it matches the new shape, then return it
+            if row_rebinned.shape == shape:
+                return row_rebinned
             else:
-                # This will ensure all resizing and padding works as expected
-                if old_shape[0] == 1:
-                    a = a.reshape((1,a.shape[0]))
-                # Change the columns first
                 ax = 1
-            # Tile the range of col_sizer
-            tiles = np.tile(np.arange(col_sizer), (old_shape[0], shape[1] // col_sizer-1))
-            # Get the differences between values
-            differences = np.diff(a, axis = ax) / col_sizer
-            # Multiply differences array by tiles to get desired bins
-            inferences = np.repeat(differences, col_sizer, axis = ax) * tiles
-            # Pad the inferences to get the same shape as above
-            inferences = np.pad(inferences, (0,col_sizer))[:-col_sizer]
-            if np.issubdtype(a.dtype, np.integer):
-                inferences = np.floor(inferences).astype("int")
-            # Add this to the original array that has been repeated to match the size of inference
-            col_rebinned = inferences + np.repeat(a, col_sizer, axis = ax)
-            if col_rebinned.shape == shape:
-                rebinned = col_rebinned
-                if (shape[0] == 1):
-                    rebinned = col_rebinned[0]
-            else:
-                ax = 0
-                # tile the range of row_sizer (but going down)
-                tiles = np.tile(np.array_split(np.arange(row_sizer), row_sizer), ((shape[0]- row_sizer) // row_sizer, shape[1]))
-                # Get the differences between the rows
-                differences = np.diff(col_rebinned, axis = ax) / row_sizer
-                # Multiply this by the tiles
-                inferences = np.repeat(differences, row_sizer, axis = ax) * tiles
-                # Pad the zeros for the last two rows, and remove the extra zeros to make inferences same shape as desired shape
-                inferences = np.pad(inferences, (0,row_sizer))[:,:-row_sizer]
-                if np.issubdtype(a.dtype, np.integer):
-                    inferences = np.floor(inferences).astype("int")
-                # Now get our final array by adding the repeat of our columns rebinned to the inferences
-                rebinned = inferences + np.repeat(col_rebinned, row_sizer, axis = ax)
+                rebinned = rebin_columns(row_rebinned, ax, shape, col_sizer)
     return rebinned

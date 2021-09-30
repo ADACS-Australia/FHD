@@ -119,6 +119,12 @@ def test_rebin_increase_rows_only():
     expected = np.array([[2,6,9], [4,10,12],[6,15,15], [8,20,18], [10,18,18],[12,17,18], [15, 16, 19], [15, 16, 19], [15, 16, 19]])
     assert np.array_equal(rebin(input, (9,3)), expected)
 
+def test_rebin_basic(data_dir):
+    """Testing rebin with using a 1D array and expanding it"""
+    input = np.array([[2,5],[6,7]])
+    expected= np.array([[2,3,5,5],[4,5,6,6],[6,6,7,7],[6,6,7,7]])
+    assert np.array_equal(rebin(input, (4,4)), expected)
+
 def test_rebin_twoD_up_2_by_2(data_dir):
     """ Testing a 2D array increasing both rows and columns by factors of 2 """
     input, expected = get_data_expected(data_dir, 'data.npy', 'data_8r_10c.npy')
