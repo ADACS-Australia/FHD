@@ -86,7 +86,7 @@ def rebin(a, shape):
         if (max(old_shape[0],shape[0]) % min(old_shape[0],shape[0]) != 0) or \
            (max(old_shape[1],shape[1]) % min(old_shape[1],shape[1]) != 0):
             raise ValueError("Your new shape should be a factor of the original shape")
-        # If we are increasing the rows, increase them now and change the old shape
+        # If we are increasing the rows or columns and reducing the other, increase them now and change the old shape
         if shape[0] > old_shape[0]:
             a = np.tile(a, (shape[0], 1))
             old_shape = a.shape
@@ -99,14 +99,19 @@ def rebin(a, shape):
         rebinned = np.reshape(a, sh)
         # Get the average of the columns first
         rebinned = rebinned.mean(-1)
-        # To ensure that we get the resultsame as IDL it seems to floor the values after every calculation
+        # To ensure that we get the result same as IDL
+        # it seems to fix the values after every calculation if integer
         if np.issubdtype(a.dtype, np.integer):
-            rebinned = np.floor(rebinned).astype("int")
+            rebinned = np.fix(rebinned).astype("int")
         # Now get it for the rows
         rebinned = rebinned.mean(1)
-        # If we had a 1D array ensure it gets returned as a 1D array
+        # If we are expecting 1D array ensure it gets returned as a 1D array
         if (shape[0] == 1):
             rebinned = rebinned[0]
+        # To ensure that we get the result same as IDL 
+        # it seems to fix the values after every calculation if integer
+        if np.issubdtype(a.dtype, np.integer):
+            rebinned = np.fix(rebinned).astype("int")
 
     # Otherwise we are expanding
     else:
