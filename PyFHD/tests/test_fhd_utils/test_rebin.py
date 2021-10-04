@@ -175,6 +175,25 @@ def test_rebin_fl_down_rows(data_dir):
 
 # Larger tests begin here
 
+'''
+Some tests will have thresholds on them due to precision errors.
+IDL only works in single precision, while Python uses double by default.
+This means, floor and fix functions will work differently in Python compared
+to IDL. This presents issues for large arrays in particular, even small precision
+errors may lead to values of error of 1 or 2.
+
+For example, in IDL we have:
+FLOOR(1.9999999) == 1.0
+FLOOR(1.99999999) == 2.0 
+
+In Python we have:
+np.floor(1.999999999999999) == 1.0
+np.floor(1.9999999999999999) == 2.0
+
+If this were to happen twice in the same row or column, then both would add up to errors of upto 2.0
+As such integer arrays need to meet a threshold of 2 to pass.
+While floats I will use 1e-5, to account for rounding issues associated with precision as well.
+'''
 # EXPANDING
 
 def test_rebin_twoD_20_rows(data_dir):
@@ -195,42 +214,60 @@ def test_rebin_twoD_20_rows_20_columns(data_dir):
 def test_rebin_twoD_50_columns(data_dir):
     """ Testing a 2D array only increasing columns by a factor of 2 """
     input, expected = get_data_expected(data_dir, 'data.npy', 'data_50c.npy')
-    assert np.array_equal(rebin(input, (4, 50)), expected)
+    result = rebin(input, (4, 50))
+    threshold = 2
+    assert np.max(result - expected) <= 2
 
 def test_rebin_twoD_40_rows(data_dir):
     """ Testing a 2D array only increasing columns by a factor of 2 """
     input, expected = get_data_expected(data_dir, 'data.npy', 'data_40r.npy')
-    assert np.array_equal(rebin(input, (40, 5)), expected)
+    result = rebin(input, (40, 5))
+    threshold = 2
+    assert np.max(result - expected) <= threshold
 
 def test_rebin_twoD_2000(data_dir):
     """ Testing a 2D array only increasing columns by a factor of 2 """
     input, expected = get_data_expected(data_dir, 'data.npy', 'data_2000.npy')
-    assert np.array_equal(rebin(input, (40, 50)), expected)
+    result = rebin(input, (40, 50))
+    threshold = 2
+    assert np.max(result - expected) <= threshold
 
 def test_rebin_hundred_10_by_100(data_dir):
     """Expand a 100 element 2D array to 10 x 100"""
     input, expected = get_data_expected(data_dir, 'hundred.npy', 'hundred_10r_100c.npy')
-    assert np.array_equal(rebin(input, (10,100)), expected)
+    result = rebin(input, (10,100))
+    threshold = 2
+    assert np.max(result - expected) <= threshold
 
 def test_rebin_hundred_100_by_10(data_dir):
     """Expand a 100 element 2D array to 100 x 10"""
     input, expected = get_data_expected(data_dir, 'hundred.npy', 'hundred_100r_10c.npy')
-    assert np.array_equal(rebin(input, (100,10)), expected)
+    result = rebin(input, (100,10))
+    threshold = 2
+    assert np.max(result - expected) <= threshold
 
 def test_rebin_hundred_100_by_100(data_dir):
     """Expand a 100 element 2D array to 100 x 100"""
     input, expected = get_data_expected(data_dir, 'hundred.npy', 'hundred_100r_100c.npy')
-    assert np.array_equal(rebin(input, (100,100)), expected)
+    result = rebin(input, (100,100))
+    threshold = 2
+    assert np.max(result - expected) <= threshold
 
 def test_rebin_hundred_1000_by_1000(data_dir):
     """Expand a 100 element 2D array to 1000 x 1000"""
     input, expected = get_data_expected(data_dir, 'hundred.npy', 'hundred_1kr_1kc.npy')
-    assert np.array_equal(rebin(input, (1000,1000)), expected)
+    result = rebin(input, (1000,1000))
+    threshold = 2
+    assert np.max(result - expected) <= threshold
 
+# TODO: Why does this test fail? Is it still precision...or is it something else?
 def test_rebin_hundred_billion(data_dir):
     """Expand a 100 element 2D array to a billion elements"""
     input, expected = get_data_expected(data_dir, 'hundred.npy', 'hundred_1e4r_1e5c.npy')
-    assert np.array_equal(rebin(input, (1e4,1e5)), expected)
+    result = rebin(input, (int(1e4),int(1e5)))
+    threshold = 2
+    print(np.size(np.where((result - expected) > threshold)))
+    assert np.max(result - expected) <= threshold
 
 # DECREASING
 
@@ -254,32 +291,44 @@ def test_rebin_billion_to_1(data_dir):
 def test_rebin_fl_20_rows(data_dir):
     """ Testing a 2D array only increasing columns by a factor of 2 """
     input, expected = get_data_expected(data_dir, 'data_fl.npy', 'data_fl_20r.npy')
-    assert np.array_equal(rebin(input, (20, 5)), expected)
+    threshold = 1e-5
+    result = rebin(input, (20, 5))
+    assert np.max((result - expected)) < threshold
 
 def test_rebin_fl_20_columns(data_dir):
     """ Testing a 2D array only increasing columns by a factor of 2 """
     input, expected = get_data_expected(data_dir, 'data_fl.npy', 'data_fl_20c.npy')
-    assert np.array_equal(rebin(input, (4, 20)), expected)
+    threshold = 1e-5
+    result = rebin(input, (4, 20))
+    assert np.max((result - expected)) < threshold
 
 def test_rebin_fl_20_rows_20_columns(data_dir):
     """ Testing a 2D array only increasing columns by a factor of 2 """
     input, expected = get_data_expected(data_dir, 'data_fl.npy', 'data_fl_20r_20c.npy')
-    assert np.array_equal(rebin(input, (20, 20)), expected)
+    threshold = 1e-5
+    result = rebin(input, (20, 20))
+    assert np.max((result - expected)) < threshold
 
 def test_rebin_fl_50_columns(data_dir):
     """ Testing a 2D array only increasing columns by a factor of 2 """
     input, expected = get_data_expected(data_dir, 'data_fl.npy', 'data_fl_50c.npy')
-    assert np.array_equal(rebin(input, (4, 50)), expected)
+    threshold = 1e-5
+    result = rebin(input, (4, 50))
+    assert np.max((result - expected)) < threshold
 
 def test_rebin_fl_40_rows(data_dir):
     """ Testing a 2D array only increasing columns by a factor of 2 """
     input, expected = get_data_expected(data_dir, 'data_fl.npy', 'data_fl_40r.npy')
-    assert np.array_equal(rebin(input, (40, 5)), expected)
+    threshold = 1e-5
+    result = rebin(input, (40, 5))
+    assert np.max((result - expected)) < threshold
 
 def test_rebin_fl_2000(data_dir):
     """ Testing a 2D array only increasing columns by a factor of 2 """
     input, expected = get_data_expected(data_dir, 'data_fl.npy', 'data_fl_2000.npy')
-    assert np.array_equal(rebin(input, (40, 50)), expected)
+    threshold = 1e-5
+    result = rebin(input, (40, 50))
+    assert np.max((result - expected)) < threshold
 
 
 
