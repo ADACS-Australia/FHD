@@ -101,14 +101,14 @@ def test_normals_times_10(data_dir):
 def test_billion(data_dir):
     # Read the histogram file
     data, expected_hist, expected_indices = get_data_expected(data_dir, 'one_billion.npy', 'one_billion_hist.npy', 'one_billion_inds.npy')
-    hist, _, indices = histogram(data, bin_size = 2)
+    hist, _, indices = histogram(data)
     assert np.array_equal(hist, expected_hist)
     assert np.array_equal(indices, expected_indices)
 
 def test_billion_floats(data_dir):
     # Read the histogram file
     data, expected_hist, expected_indices = get_data_expected(data_dir, 'one_billion_floats.npy', 'one_billion_floats_hist.npy', 'one_billion_floats_inds.npy')
-    hist, _, indices = histogram(data, bin_size = 2)
+    hist, _, indices = histogram(data)
     assert np.array_equal(hist, expected_hist)
     assert np.array_equal(indices, expected_indices)
 

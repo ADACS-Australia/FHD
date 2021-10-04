@@ -65,17 +65,20 @@ def histogram(data, bin_size = 1, num_bins = None, min = None, max = None) :
     # If the number of bins has been set use that
     if num_bins is not None:
         bins = num_bins
-    # If the bin_size is 1 make it consistent with IDL
-    elif bin_size == 1:
-        # This ensures the last bin edge matches what IDL does
-        bins = np.append(np.arange(min, max + 1), max)
-    # Else bin_size isn't 1, so use that to create the bins
+    # Set the bins using bin_size
     else:
-        # Use the bin size as the step and add max to the end to get the expected behaviour
-        bins = np.arange(min, max + 1, bin_size)
-        bins = np.append(bins, max)
-    hist, bin_edges = np.histogram(data, bins = bins)
-    # As we purposely added a bin to get the same behaviour as IDL remove it now 
+        # IDL uses the bin_size as equal throughout min to max
+        bins = np.arange(min , max + bin_size, bin_size)
+        # However, if we set a max, we must adjust the last bin to max
+        if bins[-1] > max:
+            bins[-1] = max
+        # In the case the max mod bin_size is 0, add max again, 
+        # as IDL treats last bin as [x, y), i.e. right edges all the way to end
+        # unlike NumPy which does [x, y] i.e. at end includes all values
+        if max % bin_size == 0:
+            bins = np.append(bins, max)
+    hist, bin_edges = np.histogram(data, bins = bins, range = (min, max))
+    # As we purposely added a bin for max to get the same behaviour as IDL remove it now 
     bin_edges = bin_edges[:-1]
 
     '''
