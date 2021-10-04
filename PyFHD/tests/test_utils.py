@@ -1,7 +1,7 @@
 import numpy as np
 from pathlib import Path
 
-def get_data_expected(data_dir, data_filename, expected_filename, *args):
+def get_data_expected(data_dir, data_filename, *args):
     """
     This function is designed to read npy files in a 
     data directory inside fhd_utils. Ensure the data file
@@ -32,10 +32,8 @@ def get_data_expected(data_dir, data_filename, expected_filename, *args):
     """
     # Put as Paths and read the files
     input_path = Path(data_dir, data_filename)
-    expected_path = Path(data_dir, expected_filename)
     input = np.load(input_path, allow_pickle=True)
-    expected = np.load(expected_path, allow_pickle=True)
-    return_list = [input, expected]
+    return_list = [input]
     if len(args) > 0:
         for file in args:
             path = Path(data_dir, file)
