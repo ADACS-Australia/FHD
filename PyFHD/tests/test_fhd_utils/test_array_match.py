@@ -1,6 +1,6 @@
 import numpy as np
 from pathlib import Path
-from tests.test_utils import get_data_expected
+from tests.test_utils import get_data
 from fhd_utils.idl_tools.array_match import array_match
 import pytest
 
@@ -10,7 +10,7 @@ def data_dir():
     return list(Path.glob(Path.cwd(), '**/array_match/'))[0]
 
 def test_array_match_uno(data_dir):
-    array1, array2, value_match, expected_indices, expected_n_match =  get_data_expected(data_dir, 
+    array1, array2, value_match, expected_indices, expected_n_match =  get_data(data_dir, 
                                                                        'vis_weights_update_input_array1.npy', 
                                                                        'vis_weights_update_input_array2.npy', 
                                                                        'vis_weights_update_input_value_match.npy',

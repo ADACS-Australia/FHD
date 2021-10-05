@@ -2,7 +2,7 @@ import numpy as np
 from pathlib import Path
 import pytest
 from fhd_core.gridding.interpolate_kernel import interpolate_kernel
-from tests.test_utils import process_inputs
+from tests.test_utils import get_data_items
 
 @pytest.fixture
 def data_dir():
@@ -11,7 +11,7 @@ def data_dir():
 def test_interpolate_kernel_one(data_dir):
     kernel_arr, x_offset, y_offset, \
     dx0dy0, dx1dy0, dx0dy1, dx1dy1, expected_kernel = \
-        process_inputs(data_dir, \
+        get_data_items(data_dir, \
             'visibility_grid_input_kernel_arr_1.npy',
             'visibility_grid_input_x_offset_1.npy',
             'visibility_grid_input_y_offset_1.npy',
@@ -27,7 +27,7 @@ def test_interpolate_kernel_one(data_dir):
 def test_interpolate_kernel_two(data_dir):
     kernel_arr, x_offset, y_offset, \
     dx0dy0, dx1dy0, dx0dy1, dx1dy1, expected_kernel = \
-        process_inputs(data_dir,\
+        get_data_items(data_dir,\
             'visibility_grid_input_kernel_arr_2.npy',
             'visibility_grid_input_x_offset_2.npy',
             'visibility_grid_input_y_offset_2.npy',
@@ -44,7 +44,7 @@ def test_interpolate_kernel_three(data_dir):
     # TODO: Its failing, precision errors? Its such a simple function, I'm not sre what else.
     kernel_arr, x_offset, y_offset, \
     dx0dy0, dx1dy0, dx0dy1, dx1dy1, expected_kernel = \
-        process_inputs(data_dir,\
+        get_data_items(data_dir,\
             'visibility_grid_input_kernel_arr_3.npy',
             'visibility_grid_input_x_offset_3.npy',
             'visibility_grid_input_y_offset_3.npy',
