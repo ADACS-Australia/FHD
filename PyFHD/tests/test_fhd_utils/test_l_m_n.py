@@ -1,7 +1,22 @@
 import pytest
 import numpy as np
+from pathlib import Path
+from tests.test_utils import get_data, get_data_items
+from fhd_utils.l_m_n import l_m_n
 
-# TODO: Add More tests for l_m_n
+@pytest.fixture
+def data_dir():
+    return list(Path.glob(Path.cwd(), '**/l_m_n'))[0]
 
-def test_l_m_n_1():
-    pass
+def test_l_m_n_one(data_dir):
+    obs, psf = get_data(data_dir, 'visibility_grid_input_obs.npy', 'visibility_grid_input_psf.npy')
+    expected_l_mode, expected_m_mode, expected_n_tracked = get_data_items(data_dir,
+                                                                          'visibility_grid_output_l_mode.npy',
+                                                                          'visibility_grid_output_m_mode.npy',
+                                                                          'visibility_grid_output_n_tracked.npy')
+    l_mode, m_mode, n_tracked = l_m_n(obs, psf)
+    # Set the threshold for single precision accuracy.
+    threshold= 1e-7
+    assert np.max(l_mode - expected_l_mode) < threshold
+    assert np.max(m_mode - expected_m_mode) < threshold
+    assert np.max(n_tracked - expected_n_tracked) < threshold

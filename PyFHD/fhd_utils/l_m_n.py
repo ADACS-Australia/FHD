@@ -1,6 +1,6 @@
 import numpy as np
 
-def l_m_n(obs, psf, obsdec = None, obsra = None, dec_arr = None, ra_arr = None) :
+def l_m_n(obs, psf, obsdec = None, obsra = None,  declination_arr = None, right_ascension_arr = None) :
     """
     Calculates the l mode, m mode and the n_tracked
     TODO: Add Detailed Description of l_m_n
@@ -17,10 +17,10 @@ def l_m_n(obs, psf, obsdec = None, obsra = None, dec_arr = None, ra_arr = None) 
     obsra: array, optional
         By default is set to None, as such by default this value will be set to
         obs['obsra']
-    dec_arr: array, optional
+    declination_arr: array, optional
         By default is set to None, as such by default this value will be set to
         psf['image_info']['dec_arr']
-    ra_arr: array, optional
+    right_ascension_arr: array, optional
         By default is set to None, as such by default this value will be set to
         psf['image_info']['ra_arr']
 
@@ -38,16 +38,16 @@ def l_m_n(obs, psf, obsdec = None, obsra = None, dec_arr = None, ra_arr = None) 
         obsdec = obs['obsdec']
     if obsra is None:
         obsra = obs['obsra']
-    if dec_arr is None:
-        declination_arr = psf['image_info']['dec_arr']
-    if ra_arr  is None:
-        right_ascension_arr = psf['image_info']['ra_arr']
+    if  declination_arr is None:
+        declination_arr = psf['image_info'][0]['dec_arr'][0]
+    if right_ascension_arr  is None:
+        right_ascension_arr = psf['image_info'][0]['ra_arr'][0]
 
     # Convert all the degrees given into radians
     obsdec = np.radians(obsdec)
     obsra = np.radians(obsra)
-    dec_arr = np.radians(declination_arr)
-    ra_arr = np.radians(right_ascension_arr)
+    declination_arr = np.radians(declination_arr)
+    right_ascension_arr = np.radians(right_ascension_arr)
 
     # Calculate l mode, m mode and the phase-tracked n mode of pixel centers
     cdec0 = np.cos(obsdec)
@@ -56,10 +56,10 @@ def l_m_n(obs, psf, obsdec = None, obsra = None, dec_arr = None, ra_arr = None) 
     sdec = np.sin(declination_arr)
     cdra = np.cos(right_ascension_arr - obsra)
     sdra = np.sin(right_ascension_arr - obsra)
-    l_mode = cdec * sdra
-    m_mode = sdec * cdec0 - cdec * sdec0 * cdra
+    l_mode = sdra * cdec
+    m_mode = cdec0 * sdec - cdec * sdec0 * cdra
     # n=1 at phase center, so reference from there for phase tracking
-    n_tracked = (sdec * sdec0 - cdec * cdec0 * cdra) - 1
+    n_tracked = (sdec * sdec0 + cdec * cdec0 * cdra) - 1
 
     # find any NaN values
     nan_vals = np.where(np.isnan(n_tracked))
