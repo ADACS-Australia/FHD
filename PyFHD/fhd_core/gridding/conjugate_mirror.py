@@ -16,13 +16,10 @@ def conjugate_mirror(image):
     conj_mirror_image: array
         The mirrored and shifted image array
     """
-    # Yes all of this could have been done in fewer lines, but that's hard to read
-    # Flip image left to right (i.e. flips columns)
-    conj_mirror_image = np.fliplr(image)
-    # Flip image up to down (i.e. flips rows)
-    conj_mirror_image = np.flipud(image)
-    # Shifts rows and columns by 1 on each axis
-    conj_mirror_image = np.roll(conj_mirror_image , (1, 1), axis = (0,1))
+    # Flip image left to right (i.e. flips columns) & Flip image up to down (i.e. flips rows)
+    conj_mirror_image = np.flip(image)
+    # Shifts columns then rows by 1
+    conj_mirror_image = np.roll(conj_mirror_image ,  1, axis = (1,0))
     # If any of the array is complex, or its a complex array, get the conjugates
     if np.iscomplexobj(image):   
         conj_mirror_image = np.conjugate(conj_mirror_image)

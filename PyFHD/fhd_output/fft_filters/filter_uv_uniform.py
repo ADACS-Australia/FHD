@@ -3,7 +3,7 @@ from fhd_utils.weight_invert import weight_invert
 from fhd_core.gridding.visibility_count import visibility_count
 from fhd_core.setup_metadata.fhd_save_io import fhd_save_io
 
-def filter_uv_uniform(image_uv, obs, psf, params, weights, filter, 
+def filter_uv_uniform(image_uv, obs, psf, params, weights, 
                       name = "uniform", file_path_fhd = None, return_name_only = False,
                       *args, **kwargs):
     """

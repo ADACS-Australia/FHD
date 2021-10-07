@@ -89,7 +89,7 @@ def dirty_image_generate(dirty_image_uv, mask = None, baseline_threshold = 0, no
                 di_uv_use *= filter
             # Otherwise use a filter function
             else:
-                di_uv_use = eval("{}(di_uv_use, weights, filter".format(image_filter_fn))
+                di_uv_use = eval("{}(di_uv_use, weights, filter)".format(image_filter_fn))
     # Resize the dirty image by the factor resize    
     if resize is not None:
         dimension *= resize
@@ -132,7 +132,4 @@ def dirty_image_generate(dirty_image_uv, mask = None, baseline_threshold = 0, no
     if normalization is not None:
         dirty_image *= normalization
     #Return
-    return dirty_image
-
-
-     
+    return dirty_image  

@@ -12,7 +12,7 @@ def holo_mapfn_convert(map_fn, psf_dim, dimension, elements = None, norm = 1, th
         TODO: Description
     psf_dim: int, float
         TODO: Description
-    dimension: int, float
+    dimension: int
         TODO: Description
     elements: None, optional
         TODO: Description
@@ -30,16 +30,16 @@ def holo_mapfn_convert(map_fn, psf_dim, dimension, elements = None, norm = 1, th
         elements = dimension
     psf_dim2 = 2 * psf_dim
     psf_n = psf_dim ** 2
-    psf_i = np.arange(psf_n)
     sub_xv = meshgrid(psf_dim2, 1) - psf_dim
     sub_yv = meshgrid(psf_dim2, 2) - psf_dim
-    n = dimension * elements
     # Generate an array of shape elements x dimension
     n_arr = np.zeros((elements, dimension))
-    # Get the amount of elements that meet the threshold...although its all zeros...?
-    n1 = np.size(np.where(n_arr[1: elements - 1, 1 : dimension - 1] > threshold))
-    # Set the size...? This is weird?
-    n_arr[1: elements - 1, 1 : dimension - 1] = n1
+    # Replace the values of n_arr with the number from each array in mapfn that exceeds the threshold
+    for xi in range(dimension - 1):
+        for yi in range(elements - 1):
+            temp_arr = map_fn[xi, yi]
+            n1 = np.size(np.where(abs(temp_arr) > threshold))
+            n_arr[xi,yi] = n1
     # Get the ones to use
     i_use = np.where(n_arr)
     # Get the amount we're using
@@ -54,19 +54,23 @@ def holo_mapfn_convert(map_fn, psf_dim, dimension, elements = None, norm = 1, th
     sa = np.zeros(i_use_size)
     ija = np.zeros(i_use_size)
     # Fill in the sa and ija arrays
-    for index in range(1, i_use_size):
+    for index in range(i_use_size):
         i = i_use[index]
-        xi = np.floor(i / dimension)
-        yi = i % dimension
+        xi = i % dimension
+        yi = np.floor(i / dimension)
         map_fn_sub = map_fn[xi, yi]
         j_use = np.where(np.abs(map_fn_sub) > threshold)
 
         xii_arr = sub_xv[j_use] + xi
         yii_arr = sub_yv[j_use] + yi
         sa[index] = map_fn_sub[j_use]
-        ija[index] = ri[ri[xii_arr * dimension+ yii_arr]]
-    # Return a dictionary
-    return {"ija" : ija, "sa" : sa, "i_use": i_use, "norm": norm, "indexed" : 1}
+        ija[index] = ri[ri[xii_arr + dimension * yii_arr]]
+    # Return as record array
+    mapfn = np.recarray(ija, sa, i_use, norm, 1, \
+                        dtype=[(('ija', 'IJA'), 'int'), (('sa', 'SA'), 'int'), \
+                               (('i_use', 'I_USE'), 'int'), (('norm', 'NORM'), 'float'),\
+                               (('indexed', 'INDEXED'), '>i2')])
+    return mapfn
 
 
 
