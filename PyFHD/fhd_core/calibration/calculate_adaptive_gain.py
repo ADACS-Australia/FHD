@@ -1,11 +1,7 @@
 import numpy as np
 
-def calculate_adaptive_gain(gain_list, convergence_list, iter, base_gain = None, final_convergence_estimate = None):
-    """
-    Calculate the best gain factor to use for an iterative forward 
-    modeling algorithm, using a Kalman filter.
-
-    TODO: Docstring
+def calculate_adaptive_gain(gain_list, convergence_list, iter, base_gain, final_convergence_estimate = None):
+    """[summary]
 
     Parameters
     ----------
@@ -15,22 +11,15 @@ def calculate_adaptive_gain(gain_list, convergence_list, iter, base_gain = None,
         [description]
     iter : [type]
         [description]
-    base_gain : [type], optional
-        [description], by default None
+    base_gain : [type]
+        [description]
     final_convergence_estimate : [type], optional
         [description], by default None
-    
-    Returns
-    -------
-    gain: [type]
-        [description]
     """
-
     if iter > 2:
         # To calculate the best gain to use, compare the past gains that have been used
         # with the resulting convergences to estimate the best gain to use.
         # Algorithmically, this is a Kalman filter.
-
         # If forward modeling proceeds perfectly, the convergence metric should
         # asymptotically approach a final value.
         # We can estimate that value from the measured changes in convergence
@@ -41,12 +30,12 @@ def calculate_adaptive_gain(gain_list, convergence_list, iter, base_gain = None,
         if final_convergence_estimate is None:
             est_final_conv = np.zeros(iter - 1)
             for i in range(iter - 1):
-                final_convergence_test = ((1 + gain_list[i]) * convergence_list[i + 1] - convergence_list[i]) / gain_list[i]
+                final_convergence_test = ((1 + gain_list) * convergence_list[i + 1] - convergence_list[i]) / gain_list[i]
                 # The convergence metric is strictly positive, so if the estimated final convergence is
                 # less than zero, force it to zero.
                 est_final_conv[i] = np.max(0, final_convergence_test)
-                # Because the estimate may slowly change over time, only use the most recent measurements.
-                final_convergence_estimate = np.median(est_final_conv[np.max(iter - 5, 0):])
+            # Because the estimate may slowly change over time, only use the most recent measurements.
+            final_convergence_estimate = np.median(est_final_conv[np.max(iter - 5, 0):])
         last_gain = gain_list[iter - 1]
         last_conv = convergence_list[iter - 2]
         new_conv = convergence_list[iter - 1]
@@ -65,8 +54,11 @@ def calculate_adaptive_gain(gain_list, convergence_list, iter, base_gain = None,
         # Average the gains to prevent oscillating solutions.
         new_gain = (new_gain + last_gain) / 2
         gain = np.max(base_gain / 2, new_gain)
+
     else:
         gain = base_gain
-    gain_list[iter] = gain
-    # May need to return gain_list also.
+    # Is the plan to use gain_list?
+    # vis_calibrate_subroutine doesn't use it so no point in this statement currently
+    # gain_list[iter] = gain
+
     return gain
