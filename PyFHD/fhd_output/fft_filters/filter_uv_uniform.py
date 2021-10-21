@@ -3,9 +3,8 @@ from fhd_utils.weight_invert import weight_invert
 from fhd_core.gridding.visibility_count import visibility_count
 from fhd_core.setup_metadata.fhd_save_io import fhd_save_io
 
-def filter_uv_uniform(image_uv, obs, psf, params, weights, 
-                      name = "uniform", file_path_fhd = None, return_name_only = False,
-                      *args, **kwargs):
+def filter_uv_uniform(image_uv, obs, psf, params, weights, fi_use = None, bi_use = None, 
+                      mask_mirror_indices = None, name = "uniform", return_name_only = False):
     """
     TODO: Description
 
@@ -24,11 +23,8 @@ def filter_uv_uniform(image_uv, obs, psf, params, weights,
         to a filter function.
     name: String, optional
         By default its set to "uniform"
-    file_path_fhd: String, Path, optional
-        In the case obs, psf and params isn't provided we can set the file_path_fhd
-        to restore values.
     return_name_only: bool, optional
-        By default is False, set to True to only return the name.
+        By default is False, set to True to only return the name and image_uv as it was inputted.
     
     Returns
     -------
@@ -38,26 +34,12 @@ def filter_uv_uniform(image_uv, obs, psf, params, weights,
     # Return the name now, if that has been set
     if return_name_only:
         # Why do you want this?
-        return name
+        return image_uv, name
     # This does not make use of fine-grained flagging, but relies on coarse flags from the obs structure 
     # (i.e. a list of tiles completely flagged, and of frequencies completely flagged)
-    if obs is None and psf is None and params is None:
-        if file_path_fhd is not None:
-            # Be careful here its says the variables here from the parameters of the function visibility_count!
-            # TODO: fhd_save_io()
-            # TODO: vis_count = visibility_count(obs, psf, params, file_path_fhd = file_path_fhd)
-            pass
-        else:
-            if np.size(weights) != np.size(image_uv):
-                raise ValueError("Weights should be the same size as image_uv")
-            vis_count = weights / np.min(weights[weights > 0])
-    else:
-        if file_path_fhd is not None:
-            # TODO: fhd_save_io()
-            pass
-        else:
-            # TODO: vis_count = visibility_count(obs, psf, params, file_path_fhd = file_path_fhd)
-            pass
+    if obs is None or psf is None or params is None:
+        raise TypeError("obs, psf and params must not be None")
+    vis_count = visibility_count(obs, psf, params, weights, fi_use, bi_use, mask_mirror_indices)
     # Get the parts of the filter we're using
     filter_use = weight_invert(vis_count, threshold = 1)
     # Get the weights index as well
@@ -71,6 +53,6 @@ def filter_uv_uniform(image_uv, obs, psf, params, weights,
     else:
         filter_use /= np.mean(filter_use)
     #Return the filtered
-    return image_uv * filter_use               
+    return image_uv * filter_use, name               
 
 

@@ -2,7 +2,7 @@ from baseline_grid_locations import baseline_grid_locations
 from conjugate_mirror import conjugate_mirror
 import numpy as np
 
-def visibility_count(obs, psf, params, vis_weight_ptr, xmin, ymin, fi_use, bi_use, mask_mirror_indices,
+def visibility_count(obs, psf, params, vis_weight_ptr, fi_use, bi_use, mask_mirror_indices,
                      file_path_fhd = None, no_conjugate = True, fill_model_visibilities = False):
     """[summary]
 

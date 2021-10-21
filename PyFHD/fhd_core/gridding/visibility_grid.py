@@ -1,298 +1,170 @@
 import numpy as np
-import datetime
-
-from numpy.testing._private.utils import print_assert_equal
-from fhd_utils.array_match import array_match
+from fhd_utils.idl_tools.array_match import array_match
 from fhd_utils.l_m_n import l_m_n
 from fhd_utils.histogram import histogram
-import interpolate_kernel
+from interpolate_kernel import interpolate_kernel
+from baseline_grid_locations import baseline_grid_locations
+from grid_beam_per_baseline import grid_beam_per_baseline
+from fhd_utils.rebin import rebin
+from holo_mapfn_convert import holo_mapfn_convert
+from fhd_utils. weight_invert import weight_invert
+from conjugate_mirror import conjugate_mirror
 
 def visibility_grid(visibility, vis_weights, obs, status_str, psf, params,
                     file_path_fhd= "/.", weights_flag = False, variance_flag = False, polarization = 0,
-                    map_flag = False, uniform_flag = False, fi_use = [],
-                    bi_use = [], no_conjugate = False, return_mapfn = False, mask_mirror_indices = False,
-                    no_save = False, model = [], model_flag = False, preserve_visibilities = False,
-                    error = False, grid_uniform = False, grid_spectral = False, spectral_model_uv = 0,
-                    beam_per_baseline = False, uv_grid_phase_only = False, *args, **kwargs) :
-    """
-    TODO: Find Out what it does for the doc
-    TODO: Get Defaults!
-    ...
+                    map_flag = False, uniform_flag = False, fi_use = None, bi_use = None, no_conjugate = False, 
+                    return_mapfn = False, mask_mirror_indices = False, no_save = False, model = None, 
+                    model_flag = False, preserve_visibilities = False, error = False, 
+                    grid_spectral = False, spectral_model_uv = 0, beam_per_baseline = False, uv_grid_phase_only = True) :
 
-    Parameters
-    ----------
 
-    visibility: Type
-        Pointer in IDL, Description to be added
-    vis_weights: array
-        An array of visibility weights
-    obs: dict
-        Contains options which set behaviour in the function
-    status_str: str
-        A Status String of some sort
-    psf: dict
-        Contains options which set behaviour in the function
-    params: dict
-        Is a dictionary whose values are lists
-
-    Returns
-    -------
-    image_uv : Type
-        TODO: Description goes here
-
-    Examples
-    --------
-    >>> visibility_grid()
-    Test1
-
-    >>> visibility_grid()
-    Test2
-
-    >>> visibility_grid()
-    Test3
-    """
-    # Get the current time
-    t0_0 = datetime.now()
-    # timing shouldn't be a keyword or parameter
-    timing = 0
-
-    # Obs is a dictionary
-    pol_names = obs['pol_names']
-    dimension = int(obs['dimension'])
-    elements = int(obs['elements'])
-    kbinsize = obs['kpix']
-    n_vis_arr = obs['nf_vis']
-    # Units are in number of wavelengths
-    kx_span = kbinsize * dimension
-    ky_span = kx_span
-    min_baseline = obs['min_baseline']
-    max_baseline = obs['max_baseline']
-    # Initalize uv-arrays
-    image_uv = np.zeros((elements, dimension), dtype = complex)
-    weights = np.zeros((elements, dimension), dtype = complex)
-    variance = np.zeros((elements, dimension))
-    uniform_filter = np.zeros((elements, dimension))
-
-    #interpolate_kernel in the psf dict should be Boolean
-    if 'interpolate_kernel' in psf:
-        interp_flag = psf['interpolate_kernel']
-    else:
-        interp_flag = False
-    # IDL code has a pointer in the structure that holds a structure...assuming dict in a dict here.
-    # The dict attached to the key baseline_info likely has to keys fbin_i, freq and freq_use
+    # Get information from the data structures
+    dimension = obs['dimension']
+    elements = obs['elements']
+    interp_flag = psf['interpolate_kernel']
+    alpha = obs['alpha']
     freq_bin_i = obs['baseline_info']['fbin_i']
-    #If nofi_use list provided
-    if len(fi_use) == 0:
-        #Get all non zeros from the list
-        fi_use = np.nonzero(obs['baseline_info']['freq_use'])
-    # Use the fi_use numpy array as indexes for freq_bin_i
-    freq_bin_i = freq_bin_i[fi_use]
     n_freq = obs['n_freq']
-        
-    # Also what's the default for bi_use?
-    if len(bi_use) == 0:
-        # If the data is being gridded separately for the even/odd time samples, then force
-        # flagging to be consistent across even/odd sets
-            flag_test=np.sum(vis_weights, where=vis_weights > 0.1)
-            bi_use = np.where(flag_test > 0, flag_test)
-    else:
-            b_info = obs['baseline_info']
-            tile_use = np.nonzero(b_info['tile_use']) + 1
-            bi_use = array_match(b_info['tile_A'], tile_use, array_2=b_info['tile_B'])
+    if fi_use is None:
+        fi_use = np.nonzero(obs['baseline_info']['freq_use'])
+    n_f_use = fi_use.size
+    freq_bin_i = freq_bin_i[fi_use]
+    n_vis_arr = obs['nf_vis']
 
-    n_b_use = len(bi_use)
-    n_f_use = len(fi_use)
+    # For each unflagged baseline, get the minimum contributing pixel number for gridding 
+    # and the 2D derivatives for bilinear interpolation
+    baselines_dict = baseline_grid_locations(obs, psf, params, vis_weights, fi_use=fi_use, 
+                                             mask_mirror_indices = mask_mirror_indices, 
+                                             interp_flag = interp_flag)
+    # Extract data from the returned dictionary 
+    bin_n = baselines_dict['bin_n']
+    bin_i = baselines_dict['bin_i']
+    n_bin_use = baselines_dict['n_bin_use']
+    ri = baselines_dict['ri']
+    xmin = baselines_dict['xmin']
+    ymin = baselines_dict['ymin']
+    vis_inds_use = baselines_dict['vis_inds_use']
+    x_offset = baselines_dict['x_offset']
+    y_offset = baselines_dict['y_offset']
+    if interp_flag:
+        dx0dy0_arr = baselines_dict['dx0dy0']
+        dx0dy1_arr = baselines_dict['dx0dy1']
+        dx1dy0_arr = baselines_dict['dx1dy0']
+        dx1dy1_arr = baselines_dict['dx1dy1']
+    bi_use = baselines_dict['bi_use']
 
-    # Calculate indices of visibilities to grid during this call (i.e. specific freqs, time sets)
-    # and initialize output arrays
-    # REMEMBER IDL does stores matrix as [columns, rows], while NumPy does [rows, columns]
-    # So MATRIX_MULTIPLY(A, B) == A # B == B * A (in NumPy)
-    vis_inds_use = np.ones_like(n_b_use) * fi_use + bi_use * np.ones_like(n_f_use) * n_freq
-    #Check Above about vis_weight_switch, it could always be TRUE
-    vis_weights_use = vis_weights[vis_inds_use]
-    # Use only the parts we want
+    # Instead of checking the visibilitity pointer we just take the vis_inds_use from visibility
     vis_arr_use = visibility[vis_inds_use]
-    # Get frequencies
+    # When model_flag is true, then so is model_return, hence ignoring model_return and only 
+    # allowing model_flag. Although, if a model is provided then take the vis_inds_use
+    if model_flag:
+        if model is not None:
+            model_use = model[vis_inds_use]
+        model_return = np.zeros((elements, dimension), dtype = complex)
+
+    # Now with the information we need, retrieve more data from the structures
     frequency_array = obs['baseline_info']['freq']
     frequency_array = frequency_array[fi_use]
-
-    # We could save on memory use by not saving this as new variables
     complex_flag = psf['complex_flag']
     psf_dim = psf['dim']
     psf_resolution = psf['resolution']
-    # Reform changes dimensions, in this case it should act like squeeze
-    # polarization, freq_bin_i and bi_use might need to be an array or list
-    group_arr = np.squeeze(psf['id'][polarization, freq_bin_i[fi_use], bi_use])
-    # We may need a way to make python read a pointer here, or in other areas too.
-    # Either that or we see if a dictionary can be used instead.
+    group_arr = np.reshape(psf['id'][bi_use, freq_bin_i[fi_use], polarization])
     beam_arr = psf['beam_ptr']
-    
-    uu = params['uu'][bi_use]
-    vv = params['vv'][bi_use]
-    ww = params['ww'][bi_use]
-    kx_arr = uu/kbinsize
-    ky_arr = vv /kbinsize
-
     nbaselines = obs['nbaselines']
     n_samples = obs['n_time']
-    n_freq_use = len(frequency_array)
+    n_freq_use = frequency_array.size
     psf_dim2 = 2 * psf_dim
-    psf_dim3 = psf_dim * psf_dim
+    psf_dim3 = psf_dim ** 2
     bi_use_reduced = bi_use % nbaselines
+    
+    # Flags have been defined in the function definition
+    # Instead of reading the flags and then setting them.
 
     if beam_per_baseline:
         # Initialization for gridding operation via a low-res beam kernel, calculated per
         # baseline using offsets from image-space delays
-        uv_grid_phase_only = True
-        # The < operator in IDL takes the minimum between two comparisons
-        psf_intermediate_res = np.min(np.ceil(np.sqrt(psf_resolution) / 2) *2, psf_resolution)
+        uu = params['uu'][bi_use]
+        vv = params['vv'][bi_use]
+        ww = params['ww'][bi_use]
+        x = y = (np.arange(dimension) - dimension / 2) * obs['kpix']
+        psf_intermediate_res = np.min(np.ceil(np.sqrt(psf_resolution) / 2) * 2, psf_resolution)
         psf_image_dim = psf['image_info']['psf_image_dim']
-        image_bot = (psf_dim/2) * psf_intermediate_res + psf_image_dim/2
-        image_top = (psf_dim*psf_resolution-1) - (psf_dim/2)*psf_intermediate_res + psf_image_dim/2
+        image_bot = -(psf_dim / 2) * psf_intermediate_res + psf_image_dim / 2
+        image_top = (psf_dim * psf_resolution - 1) - (psf_dim / 2) * psf_intermediate_res + psf_image_dim / 2
+
         l_mode, m_mode, n_tracked = l_m_n(obs, psf)
 
         if uv_grid_phase_only:
-            n_tracked = n_tracked * 0
+            n_tracked = np.zeros_like(n_tracked)
     
-    if grid_uniform:
+    # Initialize uv-arrays 
+    image_uv = np.zeros(elements, dimension)
+    weights = np.zeros(elements, dimension)
+    variance = np.zeros(elements, dimension)
+    uniform_filter = np.zeros(elements, dimension)
+
+    # mapfn is incompatible with uniformly gridded images
+    if uniform_flag:
         map_flag = False
     
-    # Flag baselines on their maximum and minimum extent in the frequency range
-    dist_test=np.sqrt((kx_arr) ** 2 + (ky_arr) ** 2) * kbinsize
-    dist_test_max = np.max(obs['baseline_info']['freq']) * dist_test
-    dist_test_min = np.min(obs['baseline_info']['freq']) * dist_test
-    flag_dist_baseline = np.where((dist_test_min < min_baseline) | (dist_test_max > max_baseline))
-    n_dist_flag = len(flag_dist_baseline)
-    
-    conj_i = np.where(ky_arr > 0, ky_arr)
-    n_conj = len(conj_i)
-    conj_flag = np.zeros(len(ky_arr))
-    if n_conj > 0:
-        conj_flag[conj_i] = 1
-        kx_arr[conj_i] = 0
-        ky_arr[conj_i] = 0
-        uu[conj_i] = 0
-        vv[conj_i] = 0
-        ww[conj_i] = 0
-        vis_arr_use[:, conj_i] = np.conjugate(vis_arr_use[:, conj_i])
+    conj_i = np.where(params['vv'][bi_use] > 0)
+    if conj_i.size > 0:
+        if beam_per_baseline:
+            uu[conj_i] = -uu[conj_i]
+            vv[conj_i] = -vv[conj_i]
+            ww[conj_i] = -ww[conj_i]
+        vis_arr_use[conj_i, :] = np.conj(vis_arr_use[conj_i, :])
         if model_flag:
-            model = model[:, conj_i] = np.conjugate(vis_arr_use[:, conj_i])
+            model_use[conj_i, :] = np.conj(model_use[conj_i, :])
     
-    # Center of baselines for x and y in units of pixels
-    xcen = kx_arr * frequency_array
-    ycen = ky_arr * frequency_array
-
-    x = y = (np.arange(dimension) - (dimension / 2)) * obs['kpix']
-
-    # Pixel number offset per baseline for each uv-box subset 
-    x_offset = (np.floor((xcen - np.floor(xcen))*psf_resolution) % psf_resolution).astype(int)
-    y_offset = (np.floor((ycen - np.floor(ycen))*psf_resolution) % psf_resolution).astype(int)
-    # Derivatives from pixel edge to baseline center for use in interpolation
-    dx_arr = (xcen - np.floor(xcen)) * psf_resolution - np.floor((xcen - np.floor(xcen)) * psf_resolution)
-    dy_arr = (ycen - np.floor(ycen)) * psf_resolution - np.floor((ycen - np.floor(ycen)) * psf_resolution)
-    dx0dy0_arr = (1 - dx_arr) * (1 - dy_arr)
-    dx0dy1_arr = (1 - dx_arr) * dy_arr
-    dx1dy0_arr = dx_arr * (1 - dy_arr)
-    dx1dy1_arr = dy_arr * dx_arr
-    # The minimum pixel in the uv-grid (bottom left of the kernel) that each baseline contributes to
-    xmin = np.floor(xcen) + dimension / 2 - (psf_dim/2 - 1)
-    ymin = np.floor(ycen) + elements / 2 - (psf_dim/2 - 1)
-
-    # Set the minimum pixel value of baselines which fall outside of the uv-grid to -1 to exclude them
-    range_test_x_i = np.where((xmin < 0) | ((xmin + psf_dim - 1) >= dimension - 1))
-    range_test_y_i = np.where((ymin < 0) | ((ymin + psf_dim - 1) >= elements - 1))
-    if (range_test_x_i.shape[0] * range_test_x_i.shape[1]) > 0:
-        xmin[range_test_x_i] = ymin[range_test_x_i] = -1
-    if (range_test_y_i.shape[0] * range_test_y_i.shape[1]) > 0:
-        xmin[range_test_y_i] = ymin[range_test_y_i] = -1
-    
-    if n_dist_flag > 0:
-        # If baselines fall outside the desired min/max baseline range at all during the frequency range, 
-        # then set their minimum pixel value to -1 to exclude them 
-        xmin[:, flag_dist_baseline] = -1
-        ymin[: flag_dist_baseline] = -1
-
-    # If baselines are flagged via the weights, then set their minimum pixel value to -1 to exclude them
-    flag_i = np.where(vis_weights < 0)
-    vis_weights = 0
-    if flag_i.shape[0] * flag_i.shape[1] > 0:
-        xmin[flag_i] = -1
-        ymin[flag_i] = -1
-    flag_i = 0
-
-    if mask_mirror_indices:
-        # Option to exclude v-axis mirrored baselines
-        if n_conj > 0:
-            xmin[:, conj_i] = -1
-            ymin[:, conj_i] = -1
-    
+    # Return if all baselines have been flagged
     if np.min(np.max(xmin), np.max(ymin)) < 0:
-        # Return if all baselines have been flagged
-        print("All data flagged or cut!")
-        timing = datetime.now() - t0_0
-        image_uv = np.zeros((elements, dimension), dtype=complex)
-        # There are values like n_vis and error and timing which are
-        # set but not returned as they are done as parameters in the function
-        # May need to adjust the return statement to reflect this
-        # Return might need to be a dictionary
-        return image_uv 
+        print("All data has been flagged")
+        return np.zeros([elements, dimension], dtype = complex)
     
-    # Match all visibilities that map from and to exactly the same pixels and store them as a histogram in bin_n
-    # with their respective index ri. Setting min equal to 0 excludes flagged (i.e. (xmin,ymin)=(-1,-1)) data
-    bin_n, _, ri = histogram(xmin + ymin * dimension, min = 0)
-    # This will get all the values that are not 0
-    bin_i = np.where(bin_n)
-    n_bin_use = bin_i.shape[0] * bin_i.shape[1]
-
     ind_ref = np.arange(np.max(bin_n))
     n_vis = np.sum(bin_n)
-    for fi in range(n_f_use - 1):
-        n_vis_arr[fi_use[fi]] = np.sum(xmin[fi, :], where = xmin[fi, :] > 0)
-    # obs['nf_vis'] = n_vis_arr I'm guessing we'll be returning obs too...
+    for fi in range(n_f_use):
+        n_vis_arr[fi_use[fi]] = np.sum(xmin[:, fi] > 0)
+    # TODO: Returning obs?
+    obs['nf_vis'] = n_vis_arr
 
-    index_arr = np.reshape(np.arange(dimension * elements), [elements, dimension])
+    index_arr = np.reshape(np.arange(elements * dimension), (elements, dimension))
     if complex_flag:
-        init_arr = np.zeros((psf_dim2, psf_dim2), dtype = complex)
+        init_arr = np.zeros([psf_dim2, psf_dim2], dtype = complex)
     else:
-        init_arr = np.zeros((psf_dim2, psf_dim2))
-    
+        init_arr = np.zeros([psf_dim2, psf_dim2])
     arr_type = init_arr.dtype
     if grid_spectral:
-        spectral_A = np.zeros((elements, dimension), dtype = complex)
-        spectral_B = spectral_D = np.zeros((elements, dimension))
-    if model_flag:
-        spectral_model_A = spectral_A
+        # Spectral B and Spectral D shouldn't reference each other just in case
+        spectral_A = np.zeros([elements, dimension], dtype = complex)
+        spectral_B = np.zeros([elements, dimension])
+        spectral_D = np.zeros([elements, dimension])
+        if model_flag:
+            spectral_model_A = np.zeros([elements, dimension], dtype = complex)
     
+    # In the IDL visibility_grid, map_fn is set up as a 2D array of null pointers
+    # In the case of Ptr_Valid, null pointers return False (0)
+    # Meaning that every value between [ymin1:ymin1+psf_dim-1, xmin1:xmin1+psf_dim-1]
+    # is set as init_arr, which is size psf_dim2 x psf_dim2
     if map_flag:
-        map_fn = np.zeros((elements, dimension))
-        #Initialize ONLY those elements of the map_fn array that will receive data to remain sparse
-        for bi in range(n_bin_use - 1):
-            xmin1 = xmin[ri[ri[bin_i[bi]]]]
-            ymin1 = ymin[ri[ri[bin_i[bi]]]]
-            inds_init = np.zeros_like(map_fn[xmin1:xmin1+psf_dim-1,ymin1:ymin1+psf_dim-1])
-            inds_init = index_arr[xmin1:xmin1+psf_dim-1,ymin1:ymin1+psf_dim-1][inds_init]
-            nzero = np.size(inds_init)
-            for ii in range(nzero-1):
-                map_fn[inds_init[ii]] = init_arr
-        map_fn_inds = np.zeros((psf_dim, psf_dim))
-        psf2_inds = np.reshape(np.arange(psf_dim2 * psf_dim2), [psf_dim2, psf_dim2])
-        for i in range(psf_dim - 1):
-            for j in range(psf_dim - 1):
-                map_fn_inds[i, j] = psf2_inds[psf_dim-i : 2 * psf_dim - i - 1, psf_dim - j : 2 * psf_dim - j - 1]
-    
-    for bi in range(n_bin_use - 1):
+        map_fn = np.zeros((elements, dimension, psf_dim2, psf_dim2))
+        # TODO: IDL visibility_grid.pro code from 164-182 goes here
+
+    for bi in range(n_bin_use):
         # Cycle through sets of visibilities which contribute to the same data/model uv-plane pixels, and perform
-        # the gridding operation per set using each visibilities' hyperresolved kernel
+        # the gridding operation per set using each visibilities' hyperresolved kernel 
 
         # Select the indices of the visibilities which contribute to the same data/model uv-plane pixels
-        inds = ri[ri[bin_i[bi]]:ri[bin_i[bi]+1]-1]
+        inds = ri[ri[bin_i[bi]] : ri[bin_i[bi] + 1] - 1]
         ind0 = inds[0]
 
         # Select the pixel offsets of the hyperresolution uv-kernel of the selected visibilities 
         x_off = x_offset[inds]
         y_off = y_offset[inds]
 
-        # Since all selected visibilities have the same minimum x,y pixel they contribute to, reduce the array
+        # Since all selected visibilities have the same minimum x,y pixel they contribute to,
+        # reduce the array
         xmin_use = xmin[ind0]
         ymin_use = ymin[ind0]
 
@@ -302,7 +174,7 @@ def visibility_grid(visibility, vis_weights, obs, status_str, psf, params,
 
         # Calculate the number of selected visibilities and their baseline index
         vis_n = bin_n[bin_i[bi]]
-        baseline_inds = bi_use_reduced[ (inds / n_f_use) % nbaselines]
+        baseline_inds = bi_use_reduced[(inds / n_f_use) % nbaselines]
 
         if interp_flag:
             # Calculate the interpolated kernel on the uv-grid given the derivatives to baseline locations
@@ -317,18 +189,19 @@ def visibility_grid(visibility, vis_weights, obs, status_str, psf, params,
             # Select the model/data visibility values of the set, each with a weight of 1
             rep_flag = False
             if model_flag:
-                model_box = model[inds]
+                model_box = model_use[inds]
             vis_box = vis_arr_use[inds]
             psf_weight = np.ones(vis_n)
 
-            box_matrix = np.empty((vis_n, psf_dim3), dtype = arr_type)
-            for ii in range(vis_n - 1):
+            box_matrix = np.zeros((vis_n, psf_dim3), dtype = arr_type)
+            for ii in range(vis_n):
                 # For each visibility, calculate the kernel values on the static uv-grid given the
                 # hyperresolved kernel and an interpolation involving the derivatives
-                box_matrix[psf_dim3*ii] = interpolate_kernel(beam_arr[polarization, fbin[ii], baseline_inds[ii]], x_off[ii], y_off[ii], 
-                                                             dx0dy0[ii], dx1dy0[ii], dx0dy1[ii], dx1dy1[ii])
+                box_matrix[psf_dim3 * ii] = interpolate_kernel(beam_arr[baseline_inds[ii], fbin[ii], polarization],
+                                                               x_off[ii], y_off[ii], dx0dy0, dx1dy0, dx0dy1, dx1dy1)
         else:
-            # Calculate the beam kernel at each baseline location given the hyperresolved pre-calculated beam kernel
+            # Calculate the beam kernel at each baseline location given the hyperresolved pre-calculated
+            # beam kernel
 
             # Calculate a unique index for each kernel location and kernel type in order to reduce 
             # operations if there are repeats
@@ -340,13 +213,12 @@ def visibility_grid(visibility, vis_weights, obs, status_str, psf, params,
             xyf_si = np.sort(xyf_i)
             xyf_i = xyf_i[xyf_si]
             xyf_ui = np.unique(xyf_i)
-            n_xyf_bin = np.size(xyf_ui)
+            n_xyf_bin = xyf_ui.size
 
             # There might be a better selection criteria to determine which is most efficient
-            # If there is one, do you want to implement it here?
-            if vis_n > 1.1 * n_xyf_bin and beam_per_baseline:
+            if vis_n > 1.1 * n_xyf_bin and not beam_per_baseline:
                 # If there are any baselines which use the same beam kernel and the same discretized location
-                # given the hyperresolution, then reduce the number of gridding operations to only
+                # given the hyperresolution, then reduce the number of gridding operations to only 
                 # non-repeated baselines
                 rep_flag = True
                 inds = inds[xyf_si]
@@ -358,7 +230,7 @@ def visibility_grid(visibility, vis_weights, obs, status_str, psf, params,
                 fbin = fbin[inds_use]
                 baseline_inds = baseline_inds[inds_use]
                 if n_xyf_bin > 1:
-                    xyf_ui0 = [0, xyf_ui[0:n_xyf_bin-2] + 1]
+                    xyf_ui0 = [xyf_ui[0: n_xyf_bin - 1] + 1, 0]
                 else:
                     xyf_ui0 = 0
                 psf_weight = xyf_ui - xyf_ui0 + 1
@@ -366,7 +238,7 @@ def visibility_grid(visibility, vis_weights, obs, status_str, psf, params,
                 vis_box1 = vis_arr_use[inds]
                 vis_box = vis_box1[xyf_ui]
                 if model_flag:
-                    model_box1 = model[inds]
+                    model_box1 = model_use[inds]
                     model_box = model_box1[xyf_ui]
                 
                 # For the baselines which map to the same pixels and use the same beam,
@@ -376,107 +248,141 @@ def visibility_grid(visibility, vis_weights, obs, status_str, psf, params,
 
                 xyf_ui = xyf_ui[repeat_i]
                 xyf_ui0 = xyf_ui0[repeat_i]
-                for rep_ii in range(np.size(repeat_i) - 1):
-                    vis_box = [repeat_i[rep_ii]] = np.sum(model_box1[xyf_ui0[rep_ii]:xyf_ui[rep_ii]])
+                for rep_ii in range(repeat_i.size):
+                    vis_box[repeat_i[rep_ii]] = np.sum(vis_box1[xyf_ui0[rep_ii]:xyf_ui[rep_ii]])
+                    if model_flag:
+                        model_box[repeat_i[rep_ii]] = np.sum(model_box1[xyf_ui0[rep_ii]:xyf_ui[rep_ii]])
                 vis_n = n_xyf_bin
             else:
                 # If there are not enough baselines which use the same beam kernel and discretized
                 # location to warrent reduction, then perform the gridding operation per baseline
                 rep_flag = False
                 if model_flag:
-                    model_box = model[inds]
-                    vis_box = vis_arr_use[inds]
-                    psf_weight = np.ones(vis_n)
-                    bt_index = inds / n_freq_use
+                    model_box = model_use[inds]
+                vis_box = vis_arr_use[inds]
+                psf_weight = np.ones(vis_n)
+                bt_index = inds / n_freq_use
             
-            box_matrix = np.empty((vis_n, psf_dim3), dtype = arr_type)
+            box_matrix = np.zeros(vis_n, psf_dim3, dtype = arr_type)
             if beam_per_baseline:
-                #  Make the beams on the fly with corrective phases given the baseline location for each visibility
+                # Make the beams on the fly with corrective phases given the baseline location for each visibility
                 # to the static uv-grid
-                # TODO: grid_beam_per_baseline
-                #box_matrix = grid_beam_per_baseline()
-                pass
+                box_matrix = grid_beam_per_baseline(psf, uu, vv, ww, l_mode, m_mode, n_tracked, frequency_array,
+                                                    x, y, xmin_use, ymin_use, freq_i, bt_index, polarization,
+                                                    fbin, image_bot, image_top, psf_dim3, box_matrix, vis_n,
+                                                    obs = obs, params = params, weights = vis_weights, 
+                                                    fi_use = fi_use, bi_use = bi_use, mask_mirror_indices = mask_mirror_indices)
             else:
-                for ii in range(vis_n - 1):
+                for ii in range(vis_n):
                     # For each visibility, calculate the kernel values on the static uv-grid given the
                     # hyperresolved kernel
-                    # Was dereferencing into two pointers
-                    box_matrix[psf_dim3 * ii] = beam_arr[polarization,fbin[ii],baseline_inds[ii]][x_off[ii],y_off[ii]]
-
-        # Calculate the conjugate transpose (dagger) of the uv-pixels that the current beam kernel contributes to
-        if complex_flag:
-            box_matrix_dag = np.conjugate(box_matrix)
-        else:
-            box_matrix_dag = box_matrix.real
-        if map_flag and rep_flag:
-            pass
-            # TODO: Rebin Function in Python
-            # box_matrix *= rebin(np.transpose(psf_weight), psf_dim3, vis_n)\
+                    box_matrix[psf_dim3 * ii] = beam_arr[baseline_inds[ii], fbin[ii], polarization][y_off[ii], x_off[ii]]
+        
+        #  Calculate the conjugate transpose (dagger) of the uv-pixels that the current beam kernel contributes to
+        if map_flag:
+            if complex_flag:
+                box_matrix_dag = np.conj(box_matrix)
+            else:
+                box_matrix = box_matrix.real
+            if rep_flag:
+                box_matrix *= rebin(np.transpose(psf_weight), (vis_n, psf_dim3))
         
         if grid_spectral:
-            term_A_box = np.transpose(box_matrix_dag) * np.transpose(freq_i * vis_box / n_vis)
-            term_B_box = np.transpose(box_matrix_dag) * np.transpose(freq_i / n_vis)
-            term_D_box = np.transpose(box_matrix_dag) * np.transpose(freq_i ** 2 / n_vis)
+            term_A_box = np.dot(np.transpose(box_matrix_dag), np.transpose((freq_i * vis_box) / n_vis))
+            term_B_box = np.dot(np.transpose(box_matrix_dag), np.transpose(freq_i / n_vis))
+            term_D_box = np.dot(np.transpose(box_matrix_dag), np.transpose(freq_i ** 2 / n_vis))
 
-            spectral_A[xmin_use:xmin_use+psf_dim-1,ymin_use:ymin_use+psf_dim-1] += term_A_box
-            spectral_B[xmin_use:xmin_use+psf_dim-1,ymin_use:ymin_use+psf_dim-1] += term_B_box
-            spectral_D[xmin_use:xmin_use+psf_dim-1,ymin_use:ymin_use+psf_dim-1] += term_D_box
+            spectral_A[ymin_use : ymin_use + psf_dim - 1, xmin_use : xmin_use + psf_dim - 1] += term_A_box
+            spectral_B[ymin_use : ymin_use + psf_dim - 1, xmin_use : xmin_use + psf_dim - 1] += term_B_box
+            spectral_D[ymin_use : ymin_use + psf_dim - 1, xmin_use : xmin_use + psf_dim - 1] =+ term_D_box
+
+            del(term_A_box, term_B_box, term_D_box)
             if model_flag:
-                term_Am_box = np.transpose(box_matrix_dag) * np.transpose(model_box / n_vis)
-                spectral_model_A[xmin_use:xmin_use+psf_dim-1,ymin_use:ymin_use+psf_dim-1] += term_Am_box
-
+                term_Am_box = np.dot(np.transpose(box_matrix_dag), np.transpose((freq_i * model_box) / n_vis))
+                spectral_model_A[ymin_use : ymin_use + psf_dim - 1, xmin_use : xmin_use + psf_dim - 1] += term_Am_box
+        
         if model_flag:
             # If model visibilities are being gridded, calculate the product of the model vis and the beam kernel
-            # for all vis which contribute to the same static uv-pixels, and add to the static uv-plane
-            box_arr = np.transpose(box_matrix_dag) * np.transpose(model_box / n_vis)
-            model[xmin_use:xmin_use+psf_dim-1,ymin_use:ymin_use+psf_dim-1] += box_arr
+            # for all vis which contribute to the same static uv-pixels, and add to the static uv-plane 
+            box_arr = np.dot(np.transpose(box_matrix_dag), np.transpose(model_box / n_vis))
+            model_return[ymin_use : ymin_use + psf_dim - 1, xmin_use : xmin_use + psf_dim - 1]+= box_arr
         
         # Calculate the product of the data vis and the beam kernel
         # for all vis which contribute to the same static uv-pixels, and add to the static uv-plane
-        box_arr = np.transpose(box_matrix_dag) * np.transpose(vis_box / n_vis)
-        image_uv[xmin_use:xmin_use+psf_dim-1,ymin_use:ymin_use+psf_dim-1] += box_arr
+        box_arr = np.dot(np.transpose(box_matrix_dag), np.transpose(vis_box / n_vis))
+        image_uv[ymin_use : ymin_use + psf_dim - 1, xmin_use : xmin_use + psf_dim - 1] += box_arr
+        del(box_arr)
 
         if weights_flag:
-            wts_box = np.transpose(box_matrix_dag) * np.transpose(psf_weight / n_vis)
-            weights[xmin_use:xmin_use+psf_dim-1,ymin_use:ymin_use+psf_dim-1] += wts_box
-        if variance_flag:
-            var_box = np.transpose(np.abs(box_matrix_dag) ** 2) * np.transpose(psf_weight / n_vis)
-            variance[xmin_use:xmin_use+psf_dim-1,ymin_use:ymin_use+psf_dim-1] += var_box
+            # If weight visibilities are being gridded, calculate the product the weight (1 per vis) and the beam kernel
+            # for all vis which contribute to the same static uv-pixels, and add to the static uv-plane
+            wts_box = np.dot(np.transpose(box_matrix_dag), np.transpose(psf_weight / n_vis))
+            weights[ymin_use : ymin_use + psf_dim - 1, xmin_use : xmin_use + psf_dim - 1] += wts_box
+        
+        if variance_flag
+            # If variance visibilities are being gridded, calculate the product the weight (1 per vis) and the square
+            # of the beam kernel for all vis which contribute to the same static uv-pixels, and add to the static uv-plane
+            var_box = np.dot(np.transpose(np.abs(box_matrix_dag) ** 2), np.transpose(psf_weight / n_vis))
+            variance[ymin_use : ymin_use + psf_dim - 1, xmin_use : xmin_use + psf_dim - 1] += var_box
+        
         if uniform_flag:
-            uniform_filter[xmin_use:xmin_use+psf_dim-1,ymin_use:ymin_use+psf_dim-1]+=bin_n[bin_i[bi]]
+            uniform_filter[ymin_use : ymin_use + psf_dim - 1, xmin_use : xmin_use + psf_dim - 1] += bin_n[bin_i[bi]]
+        
         if map_flag:
             # If the mapping function is being calculated, then calculate the beam mapping for the current
             # set of uv-pixels and add to the full mapping function
-            box_arr_map = np.transpose(box_matrix_dag) * box_matrix
-            for i in range(psf_dim - 1):
-                for j in range(psf_dim - 1):
+            box_arr_map = np.dot(np.transpose(box_matrix_dag), box_matrix)
+            for i in range(psf_dim):
+                for j in range(psf_dim):
                     ij = i + j * psf_dim
-                    # Will need adjusting probably as its using arrays of pointers
-                    map_fn[xmin_use+i,ymin_use+j][map_fn_inds[i,j]] += box_arr_map[:,ij]
-    
-    # They do things after the loop has finished to free memory
-    # We may have to, but also Python usually handles itself
+                    # TODO: access map function
+        
+    # Free Up Memory
+    del(vis_arr_use, model_use, xmin, ymin, ri, inds, x_offset, y_offset, bin_i, bin_n)
 
     if map_flag:
-        # TODO: holo_mapfn_convert
-        # TODO: fhd_save_io
-        # TODO: Find a way to return map function
-        pass
+        map_fn = holo_mapfn_convert(map_fn, psf_dim, dimension, norm = n_vis)
+    
+    # Option to use spectral index information to scale the uv-plane 
     if grid_spectral:
-        spectral_uv = weight_invert(spectral_D - spectral_B ** 2) * (image_uv * spectral_B * spectral_A - n_vis)
-    if grid_uniform:
-        filter_use = None # TODO: weight_invert(uniform_filter, 1)
-        wts_i = np.where(filter_use)
-        if np.size(wts_i) > 0:
+        spectral_uv = (spectral_A - n_vis * spectral_B * image_uv) * weight_invert(spectral_D - spectral_B ** 2)
+        if model_flag:
+            spectral_model_uv = (spectral_model_A - n_vis * spectral_B * model_return) * weight_invert(spectral_D - spectral_B ** 2)
+        if not no_conjugate:
+            spectral_uv = (spectral_uv + conjugate_mirror(spectral_uv)) / 2
+            if model_flag:
+                spectral_model_uv = (spectral_model_uv + conjugate_mirror(spectral_model_uv)) / 2
+    
+    # Option to apply a uniform weighted filter to all uv-planes
+    if uniform_flag:
+        filter_use = weight_invert(uniform_filter, threshold = 1)
+        wts_i = np.nonzero(filter_use)
+        if wts_i.size > 0:
             filter_use /= np.mean(filter_use[wts_i])
         else:
             filter_use /= np.mean(filter_use)
-        # TODO: image_uv *= weight_invert(filter_use)
-        if weights_flag: 
-            pass # TODO: weights *= weight_invert(filter_use)
+        image_uv *= weight_invert(filter_use)
+        if weights_flag:
+            weights *= weight_invert(filter_use)
         if variance_flag:
-            pass # TODO: variance *= weight_invert(filter_use)
+            variance *= weight_invert(filter_use)
         if model_flag:
-            pass # TODO: model *= weight_invert(filter_use)
+            model_return *= weight_invert(filter_use)
+    
+    if not no_conjugate:
+        # The uv-plane is its own conjugate mirror about the x-axis, so fill in the rest of the uv-plane
+        # using simple maths instead of extra gridding
+        image_uv = (image_uv + conjugate_mirror(image_uv)) / 2
+        if weights_flag:
+            weights = (weights + conjugate_mirror(weights)) / 2
+        if variance_flag:
+            variance = (variance + conjugate_mirror(variance)) / 4
+        if model_flag:
+            model_return = (model_return + conjugate_mirror(model_return)) / 2
+        if uniform_flag:
+            uniform_filter = (uniform_filter + conjugate_mirror(uniform_filter)) / 2
 
-
+    if model_flag:
+        return image_uv, weights, variance, uniform_filter, model_return
+    else:
+        return image_uv, weights, variance, uniform_filter

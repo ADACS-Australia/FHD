@@ -8,7 +8,8 @@ from astropy.convolution import convolve, Box2DKernel
 def dirty_image_generate(dirty_image_uv, mask = None, baseline_threshold = 0, normalization = None,
                          resize = None, width_smooth = None, degpix = None, real = False,
                          image_filter_fn = 'filter_uv_uniform', pad_uv_image = None, filter = None,
-                         weights = None, beam_ptr = None, *args, **kwargs):
+                         weights = None, beam_ptr = None, obs = None, psf = None, params = None, 
+                         fi_use = None, bi_use = None):
     """
     TODO: Description
 
@@ -89,7 +90,7 @@ def dirty_image_generate(dirty_image_uv, mask = None, baseline_threshold = 0, no
                 di_uv_use *= filter
             # Otherwise use a filter function
             else:
-                di_uv_use = eval("{}(di_uv_use, weights, filter)".format(image_filter_fn))
+                di_uv_use, _ = eval("{}(di_uv_use, obs, psf, params, weights, fi_use = fi_use, bi_use = bi_use, mask_mirror_indices = mask_mirror_indices)".format(image_filter_fn))
     # Resize the dirty image by the factor resize    
     if resize is not None:
         dimension *= resize

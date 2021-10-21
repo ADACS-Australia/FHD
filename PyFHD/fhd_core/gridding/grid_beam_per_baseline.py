@@ -5,7 +5,9 @@ from math import pi
 def grid_beam_per_baseline(psf, uu, vv, ww, l_mode, m_mode, n_tracked, frequency_array, x, y,
                            xmin_use, ymin_use, freq_i, bt_index, polarization, fbin, image_bot, 
                            image_top, psf_dim3, box_matrix, vis_n, beam_int = None, beam2_int = None,
-                           n_grp_use = None, degrid_flag = False, beam_clip_floor = False, *args, **kwargs):
+                           n_grp_use = None, degrid_flag = False, beam_clip_floor = False,
+                           obs = None, params = None, weights = None, fi_use = None, bi_use = None,
+                           mask_mirror_indices = None):
     """
     TODO: Docstring
 
