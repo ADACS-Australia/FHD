@@ -31,7 +31,7 @@ def rebin_rows(a, ax, shape, old_shape, row_sizer):
     return row_rebinned
 
 
-def rebin(a, shape):
+def rebin(a, shape, sample = False):
     """
     Resizes a 2d array by averaging or repeating elements, 
     new dimensions must be integral factors of original dimensions
@@ -42,6 +42,8 @@ def rebin(a, shape):
     new_shape : tuple of int
         Shape of the output array in (rows, columns)
         Must be a factor or multiple of a.shape
+    sample: bool optional
+        Use this to get samples using rebin, rather than interpolation, by default False.
         
     Returns
     -------
@@ -49,6 +51,7 @@ def rebin(a, shape):
         If the new shape is smaller of the input array, the data are averaged, 
         if the new shape is bigger array elements are repeated and interpolated
 
+    TODO: Adjust Examples
     Examples
     --------
     >>> test = np.array([0,10,20,30])
@@ -81,8 +84,35 @@ def rebin(a, shape):
         return a
     if len(old_shape) == 1:
         old_shape = (1,old_shape[0])
+    # Sample the original array using rebin
+    if sample:
+        # If its a 1D array then...
+        if old_shape[0] == 1:
+            if shape[1] > old_shape[1]:
+                rebinned = np.repeat(a, shape[1] // old_shape[1], axis = 0)
+            else:
+                rebinned = a[::old_shape[1] // shape[1]]
+        # Assume its a 2D array
+        else:
+            # Do the Rows first
+            if shape[0] >= old_shape[0]:
+                # Expand Rows
+                rebinned = np.repeat(a, shape[0] // old_shape[0], axis = 0)
+            else:
+                # Compress Rows
+                rebinned = a[::old_shape[0] // shape[0], :]
+            # Then do the columns
+            if shape[1] >= old_shape[1]:
+                # Expand Columns
+                rebinned = np.repeat(rebinned, shape[1] // old_shape[1], axis = 1)
+            else:
+                # Compress columns
+                rebinned = rebinned[:, ::old_shape[1] // shape[1]]
+        # Return the rebinned without adjusting dtype as none of the functions above change it
+        return rebinned
+
     # If we are downsizing
-    if shape[0] < old_shape[0] or shape[1] < old_shape[1]:
+    elif shape[0] < old_shape[0] or shape[1] < old_shape[1]:
         if (max(old_shape[0],shape[0]) % min(old_shape[0],shape[0]) != 0) or \
            (max(old_shape[1],shape[1]) % min(old_shape[1],shape[1]) != 0):
             raise ValueError("Your new shape should be a factor of the original shape")

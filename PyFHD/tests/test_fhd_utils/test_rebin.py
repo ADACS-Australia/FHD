@@ -347,6 +347,49 @@ def test_rebin_fl_2000(data_dir):
     result = rebin(input, (40, 50))
     assert np.max((result - expected)) < threshold
 
+# SAMPLE Testing
+
+def test_rebin_data_sample_up(data_dir):
+    input, expected = get_data(data_dir, "data.npy", "data_sample_up.npy")
+    result = rebin(input, (8, 10), sample = True)
+    assert np.array_equal(result, expected)
+
+def test_rebin_data_sample_down(data_dir):
+    input, expected = get_data(data_dir, "data.npy", "data_sample_down.npy")
+    result = rebin(input, (2, 5), sample = True)
+    assert np.array_equal(result, expected)
+
+def test_rebin_data3_sample_up(data_dir):
+    input, expected = get_data(data_dir, "data3.npy", "data3_sample_up.npy")
+    result = rebin(input, (12, 12), sample = True)
+    assert np.array_equal(result, expected)
+
+def test_rebin_data3_sample_down(data_dir):
+    input, expected = get_data(data_dir, "data3.npy", "data3_sample_down.npy")
+    result = rebin(input, (2, 2), sample = True)
+    assert np.array_equal(result, expected)
+
+def test_rebin_test_sample_up(data_dir):
+    input, expected = get_data(data_dir, "test.npy", "test_sample_up.npy")
+    result = rebin(input, (1, 8), sample = True)
+    assert np.array_equal(result, expected)
+
+def test_rebin_test_sample_down(data_dir):
+    input, expected = get_data(data_dir, "test.npy", "test_sample_down.npy")
+    result = rebin(input, (1, 2), sample = True)
+    assert np.array_equal(result, expected)
+
+def test_rebin_data3_sample_up_down(data_dir):
+    input, expected = get_data(data_dir, "data3.npy", "data3_sample_up_down.npy")
+    result = rebin(input, (2, 8), sample = True)
+    assert np.array_equal(result, expected)
+
+def test_rebin_data3_sample_down_up(data_dir):
+    input, expected = get_data(data_dir, "data3.npy", "data3_sample_down_up.npy")
+    result = rebin(input, (8, 2), sample = True)
+    assert np.array_equal(result, expected)
+
+
 
 
 

@@ -16,7 +16,68 @@ def visibility_grid(visibility, vis_weights, obs, status_str, psf, params,
                     return_mapfn = False, mask_mirror_indices = False, no_save = False, model = None, 
                     model_flag = False, preserve_visibilities = False, error = False, 
                     grid_spectral = False, spectral_model_uv = 0, beam_per_baseline = False, uv_grid_phase_only = True) :
+    """[summary]
+    TODO: docstring
+    Parameters
+    ----------
+    visibility : [type]
+        [description]
+    vis_weights : [type]
+        [description]
+    obs : [type]
+        [description]
+    status_str : [type]
+        [description]
+    psf : [type]
+        [description]
+    params : [type]
+        [description]
+    file_path_fhd : str, optional
+        [description], by default "/."
+    weights_flag : bool, optional
+        [description], by default False
+    variance_flag : bool, optional
+        [description], by default False
+    polarization : int, optional
+        [description], by default 0
+    map_flag : bool, optional
+        [description], by default False
+    uniform_flag : bool, optional
+        [description], by default False
+    fi_use : [type], optional
+        [description], by default None
+    bi_use : [type], optional
+        [description], by default None
+    no_conjugate : bool, optional
+        [description], by default False
+    return_mapfn : bool, optional
+        [description], by default False
+    mask_mirror_indices : bool, optional
+        [description], by default False
+    no_save : bool, optional
+        [description], by default False
+    model : [type], optional
+        [description], by default None
+    model_flag : bool, optional
+        [description], by default False
+    preserve_visibilities : bool, optional
+        [description], by default False
+    error : bool, optional
+        [description], by default False
+    grid_spectral : bool, optional
+        [description], by default False
+    spectral_model_uv : int, optional
+        [description], by default 0
+    beam_per_baseline : bool, optional
+        [description], by default False
+    uv_grid_phase_only : bool, optional
+        [description], by default True
 
+    Returns
+    -------
+    [type]
+        [description]
+    """
 
     # Get information from the data structures
     dimension = obs['dimension']

@@ -79,6 +79,23 @@ PRO rebin_runner
 
     data_fl_2R_5C = rebin(data_fl, 5, 2)
 
+    ; /SAMPLE tests
+
+    data_sample_up = rebin(data, 10, 8, /SAMPLE)
+
+    data_sample_down = rebin(data, 5, 2, /SAMPLE)
+
+    data3_sample_up = rebin(data3, 12, 12, /SAMPLE)
+
+    data3_sample_down = rebin(data3, 2, 2, /SAMPLE)
+    
+    test_sample_up = rebin(test, 8, 1, /SAMPLE)
+
+    test_sample_down = rebin(test, 2, 1, /SAMPLE)
+
+    data3_sample_up_down = rebin(data3, 8, 2, /SAMPLE)
+
+    data3_sample_down_up = rebin(data3, 2, 8, /SAMPLE)
 
     ;Larger size tests
 
