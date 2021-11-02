@@ -20,3 +20,42 @@ def test_l_m_n_one(data_dir):
     assert np.max(l_mode - expected_l_mode) < threshold
     assert np.max(m_mode - expected_m_mode) < threshold
     assert np.max(n_tracked - expected_n_tracked) < threshold
+
+def test_l_m_n_two(data_dir):
+    obs, psf, obsdec, obsra, dec_arr, ra_arr = get_data(
+                                                data_dir, 
+                                                'input_obs_2.npy', 
+                                                'input_psf_2.npy',
+                                                'input_obsdec_2.npy',
+                                                'input_obsra_2.npy',
+                                                'input_dec_arr_2.npy',
+                                                'input_ra_arr_2.npy'
+                                               )
+    expected_l_mode, expected_m_mode, expected_n_tracked = get_data_items(
+                                                                           data_dir,
+                                                                           'output_l_mode_2.npy',
+                                                                           'output_m_mode_2.npy',
+                                                                           'output_n_tracked_2.npy'
+                                                                         )
+    obsdec = obsdec.item
+    l_mode, m_mode, n_tracked = l_m_n(obs, psf, obsdec = obsdec, obsra = obsra, declination_arr = dec_arr, right_ascension_arr = ra_arr)
+    # Set the threshold for single precision accuracy.
+    threshold= 1e-7
+    assert np.max(l_mode - expected_l_mode) < threshold
+    assert np.max(m_mode - expected_m_mode) < threshold
+    assert np.max(n_tracked - expected_n_tracked) < threshold
+
+def test_l_m_n_three(data_dir):
+    obs, psf = get_data(data_dir, 'input_obs_3.npy', 'input_psf_3.npy')
+    expected_l_mode, expected_m_mode, expected_n_tracked = get_data_items(
+                                                                           data_dir,
+                                                                           'output_l_mode_3.npy',
+                                                                           'output_m_mode_3.npy',
+                                                                           'output_n_tracked_3.npy'
+                                                                         )
+    l_mode, m_mode, n_tracked = l_m_n(obs, psf)
+    # Set the threshold for single precision accuracy.
+    threshold= 1e-7
+    assert np.max(l_mode - expected_l_mode) < threshold
+    assert np.max(m_mode - expected_m_mode) < threshold
+    assert np.max(n_tracked - expected_n_tracked) < threshold

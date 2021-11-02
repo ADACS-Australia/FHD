@@ -1,5 +1,5 @@
 import numpy as np
-import math
+from math import factorial
 
 def deriv_coefficients(n, divide_factorial = False):
     """
@@ -20,18 +20,19 @@ def deriv_coefficients(n, divide_factorial = False):
         An array of coefficients
     """
     if n <= 0:
-        raise ValueError("n must be > 0 to set an array size")
+        return 0
     # Set up the array
     coeff = np.zeros(n)
     # Set the first coefficient to 1
     coeff[0] = 1
     # For every coefficient
     for m in range(1, n):
-        coeff[1:m] += -m * coeff[0: m-1]
+        # Had to do m + 1 for the range as IDL coeff[1:1] == coeff[1], but Python coeff[1:1] == array([])
+        coeff[1 : m + 1] += -m * coeff[0 : m]
     # If we are to divide by the factorial do that to each coefficient
     if divide_factorial:
         for m in range(n):
-            coeff[m] /= math.factorial(m + 1)
+            coeff[m] /= factorial(m + 1)
     
     # Return coefficients
     return coeff

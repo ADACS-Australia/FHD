@@ -12,15 +12,22 @@ def array_match(array_1, value_match, array_2 = None) :
     value_match: array
         TODO: Add Description for Value_Match
     array_2: array, optional
-        TODO: Add Description for Array_2
+        TODO: Add Description for Array_2, default is None
 
     Returns
     -------
+    indices: array
+        TODO: Add Description for return of array_match
     matching indices: array
         TODO: Add Description for return of array_match
+    
+    Raises
+    ------
+    ValueError
+        Gets raised if value_match is None 
     """
     if value_match is None:
-        raise TypeError("Value Match Should be a value not None")
+        raise ValueError("Value Match Should be a value not None")
     # If array_2 has been supplied, compare which mins and maxes to use based on two arrays
     if array_2 is not None and np.size(array_2) > 0:
         min_use = np.min([np.min(array_1), np.min(array_2)])
@@ -44,7 +51,7 @@ def array_match(array_1, value_match, array_2 = None) :
     omin = bins_v1[0]
     omax = bins_v1[-1]
     hist_v2, _, _ = histogram(value_match, min = omin, max = omax)
-    vals = np.where(np.bitwise_and(hist_v1, hist_v2))
+    vals = np.nonzero(np.bitwise_and(hist_v1, hist_v2))[0]
     n_match = np.size(vals)
 
     if n_match == 0:
