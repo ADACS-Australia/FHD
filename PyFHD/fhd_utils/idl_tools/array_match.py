@@ -51,19 +51,20 @@ def array_match(array_1, value_match, array_2 = None) :
     omin = bins_v1[0]
     omax = bins_v1[-1]
     hist_v2, _, _ = histogram(value_match, min = omin, max = omax)
-    vals = np.nonzero(np.bitwise_and(hist_v1, hist_v2))[0]
-    n_match = np.size(vals)
+    vals = np.nonzero(np.bitwise_and(hist_v1, hist_v2))[0] + omin - min_use
+    n_match = vals.size
 
     if n_match == 0:
         return -1, n_match
     
     ind_arr = np.zeros_like(array_1)
-    for vi in range(n_match - 1):
+    for vi in range(n_match):
         i = vals[vi]
         if hist1[i] > 0:
             ind_arr[ri1[ri1[i] : ri1[i+1]]] = 1
         if hist2[i] > 0:
             ind_arr[ri2[ri2[i] : ri2[i+1]]] = 1
     
+    match_indices = np.nonzero(ind_arr)[0]
     # Return our matching indices
-    return np.where(ind_arr), n_match
+    return match_indices, match_indices.size
