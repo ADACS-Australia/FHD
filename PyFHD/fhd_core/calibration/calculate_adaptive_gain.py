@@ -30,12 +30,12 @@ def calculate_adaptive_gain(gain_list, convergence_list, iter, base_gain, final_
         if final_convergence_estimate is None:
             est_final_conv = np.zeros(iter - 1)
             for i in range(iter - 1):
-                final_convergence_test = ((1 + gain_list) * convergence_list[i + 1] - convergence_list[i]) / gain_list[i]
+                final_convergence_test = ((1 + gain_list[i]) * convergence_list[i + 1] - convergence_list[i]) / gain_list[i]
                 # The convergence metric is strictly positive, so if the estimated final convergence is
                 # less than zero, force it to zero.
-                est_final_conv[i] = np.max(0, final_convergence_test)
+                est_final_conv[i] = np.max((0, final_convergence_test))
             # Because the estimate may slowly change over time, only use the most recent measurements.
-            final_convergence_estimate = np.median(est_final_conv[np.max(iter - 5, 0):])
+            final_convergence_estimate = np.median(est_final_conv[max(iter - 5, 0):])
         last_gain = gain_list[iter - 1]
         last_conv = convergence_list[iter - 2]
         new_conv = convergence_list[iter - 1]
@@ -53,7 +53,8 @@ def calculate_adaptive_gain(gain_list, convergence_list, iter, base_gain, final_
         new_gain = 1 - abs(delta)
         # Average the gains to prevent oscillating solutions.
         new_gain = (new_gain + last_gain) / 2
-        gain = np.max(base_gain / 2, new_gain)
+        # For some reason base_gain can be a numpy float in testing so putting in a tuple solves this.
+        gain = np.max((base_gain / 2, new_gain))
 
     else:
         gain = base_gain
