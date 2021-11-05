@@ -111,5 +111,3 @@ def test_billion_floats(data_dir):
     hist, _, indices = histogram(data)
     assert np.array_equal(hist, expected_hist)
     assert np.array_equal(indices, expected_indices)
-
-# TODO: Add more tests based on the data given by Nichole

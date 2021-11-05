@@ -52,19 +52,19 @@ def baseline_grid_locations(obs, psf, params, vis_weights, bi_use = None, fi_use
     n_freq = obs['n_freq']
     dimension = obs['dimension']
     elements = obs['elements']
-    kbinsize = obs['kbinsize']
+    kbinsize = obs['kpix']
     min_baseline = obs['min_baseline']
     max_baseline = obs['max_baseline']
     b_info = obs['baseline_info']
-    psf_dim = psf['dim']
-    psf_resolution = psf['resolution']
+    psf_dim = psf['dim'][0]
+    psf_resolution = psf['resolution'][0]
 
     # Frequency information of the visibilities
     if fill_model_visibilities:
         fi_use = np.arange(n_freq)
     elif fi_use is None:
         fi_use = np.where(b_info['freq_use'])
-    frequency_array = b_info['freq']
+    frequency_array = b_info[0]['freq'][0]
     frequency_array = frequency_array[fi_use]
     n_freq_use = frequency_array.size
 
@@ -82,42 +82,43 @@ def baseline_grid_locations(obs, psf, params, vis_weights, bi_use = None, fi_use
         # if the data is being gridded separately for the even/odd time samples
         # then force flagging to be consistent across even/odd sets
         if not fill_model_visibilities:
-            flag_test = np.sum(vis_weights[vis_weights > 0], axis = 0)
-            bi_use = np.where(flag_test > 0)
+            flag_test = np.sum(vis_weights, axis = 1)
+            bi_use = np.where(flag_test > 0)[0]
         else:
             tile_use = np.arange(n_tile) + 1
-            bi_use = array_match(b_info['tile_A'], tile_use, array_2= b_info['tile_B'])
+            bi_use, _ = array_match(b_info['tile_A'], tile_use, array_2 = b_info['tile_B'])
     
     # Calculate indices of visibilities to grid during this call (i.e. specific freqs, time sets)
     # and initialize output arrays
     n_b_use = bi_use.size
     n_f_use = fi_use.size
-    vis_inds_use = np.dot(np.ones(n_b_use), fi_use) + np.dot(bi_use, np.ones(n_f_use)) * n_freq
-    vis_weights = vis_weights[vis_inds_use]
+    # matrix_multiply is not what it seems for 1D arrays, had to do this to replicate!
+    vis_inds_use = (np.outer(np.ones(n_b_use), fi_use) + np.outer(bi_use, np.ones(n_f_use)) * n_freq).astype(int)
+    # Since the indices in vis_inds_use apply to a flattened array, flatten. Leave vis_inds_use as it to have the shape go back to the right shape.
+    vis_weights = vis_weights.flatten()[vis_inds_use]
 
     # Units in pixel/Hz
-    kx_arr = params['uu'][bi_use] / kbinsize
-    ky_arr = params['vv'][bi_use] / kbinsize
+    kx_arr = params['uu'][0][bi_use] / kbinsize
+    ky_arr = params['vv'][0][bi_use] / kbinsize
 
     if not fill_model_visibilities:
         # Flag baselines on their maximum and minimum extent in the full frequency range of the observation
         # This prevents the sudden dissapearance of baselines along frequency
         dist_test = np.sqrt(kx_arr ** 2 + ky_arr ** 2) * kbinsize
-        dist_test = obs['baseline_info'] * dist_test
-        dist_test_max = np.max(dist_test)
-        dist_test_min = np.min(dist_test)
+        dist_test_max = np.max(obs['baseline_info'][0]['freq'][0]) * dist_test
+        dist_test_min = np.min(obs['baseline_info'][0]['freq'][0]) * dist_test
         flag_dist_baseline = np.where((dist_test_min < min_baseline) | (dist_test_max > max_baseline))
         del(dist_test, dist_test_max, dist_test_min)
     
     # Create the other half of the uv plane via negating the locations
-    conj_i = np.where(ky_arr > 0)
+    conj_i = np.where(ky_arr > 0)[0]
     if conj_i.size > 0:
         kx_arr[conj_i] = -kx_arr[conj_i]
         ky_arr[conj_i] = -ky_arr[conj_i]
 
     # Center of baselines for x and y in units of pixels
-    xcen = np.dot(kx_arr, frequency_array)
-    ycen = np.dot(ky_arr, frequency_array)
+    xcen = np.outer(kx_arr, frequency_array)
+    ycen = np.outer(ky_arr, frequency_array)
 
     # Pixel number offset per baseline for each uv-box subset
     x_offset = np.fix(np.floor(xcen - np.floor(xcen)) * psf_resolution) % psf_resolution
@@ -133,22 +134,22 @@ def baseline_grid_locations(obs, psf, params, vis_weights, bi_use = None, fi_use
         baselines_dict['dx1dy1_arr'] = dx_arr * dy_arr
 
     # The minimum pixel in the uv-grid (bottom left of the kernel) that each baseline contributes to
-    xmin = int(np.floor(xcen) + elements / 2 - (psf_dim / 2 - 1))
-    ymin = int(np.floor(ycen) + dimension / 2 - (psf_dim / 2 - 1))
+    xmin = (np.floor(xcen) + elements / 2 - (psf_dim / 2 - 1)).astype(int)
+    ymin = (np.floor(ycen) + dimension / 2 - (psf_dim / 2 - 1)).astype(int)
 
     # Set the minimum pixel value of baselines which fall outside of the uv-grid tom -1 to exclude them
     range_test_x_i = np.where((xmin <= 0) | (xmin + psf_dim - 1 >= elements - 1))
     range_test_y_i = np.where((ymin <= 0) | (ymin + psf_dim - 1 >= dimension - 1))
-    if range_test_x_i.size > 0:
+    if range_test_x_i[0].size > 0:
         xmin[range_test_x_i] = -1
         ymin[range_test_x_i] = -1
-    if range_test_y_i.size > 0:
+    if range_test_y_i[0].size > 0:
         xmin[range_test_y_i] = -1
         ymin[range_test_y_i] = -1
 
     # Flag baselines which fall outside the uv plane
     if not fill_model_visibilities:
-        if flag_dist_baseline.size > 0:
+        if flag_dist_baseline[0].size > 0:
             # If baselines fall outside the desired min/max baseline range at all during the frequency range
             # then set their maximum pixel value to -1 to exclude them
             xmin[flag_dist_baseline, :] = -1
@@ -160,16 +161,14 @@ def baseline_grid_locations(obs, psf, params, vis_weights, bi_use = None, fi_use
     if fill_model_visibilities:
         n_flag = 0
     else:
-        n_flag = flag_i.size
+        n_flag = flag_i[0].size
     if n_flag > 0:
         xmin[flag_i] = -1
         ymin[flag_i] = -1
-    del(vis_weights)
-    del(flag_i)
 
     if mask_mirror_indices:
         # Option to exclude v-axis mirrored baselines
-        if conj_i.size > 0:
+        if conj_i[0].size > 0:
             xmin[conj_i, :] = -1
             ymin[conj_i, :] = -1
     
