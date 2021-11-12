@@ -174,8 +174,9 @@ def baseline_grid_locations(obs, psf, params, vis_weights, bi_use = None, fi_use
     
     # Match all visibilities that map from and to exactly the same pixels and store them as a histogram in bin_n
     # with their respective index ri. Setting min equal to 0, excludes flagged data (data set to -1).
-    bin_n, _ , ri = histogram(xmin + ymin * dimension, bin_size= 1, min = 0)
-    bin_i = np.nonzero(bin_n)
+    for_hist = xmin + ymin * dimension
+    bin_n, _ , ri = histogram(for_hist, min = 0)
+    bin_i = np.nonzero(bin_n)[0]
 
     # Update the baselines_dict which gets returned
     baselines_dict['bin_n'] = bin_n
