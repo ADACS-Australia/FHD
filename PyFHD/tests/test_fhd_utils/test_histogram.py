@@ -1,9 +1,8 @@
 import pytest
 import numpy as np
 from fhd_utils.histogram import histogram
-from scipy.io import readsav
 from pathlib import Path
-from tests.test_utils import get_data
+from tests.test_utils import get_data, get_data_items
 
 @pytest.fixture
 def data_dir():
@@ -135,5 +134,21 @@ def test_billion_floats(data_dir):
     # Now that we're using numba it doesn't support every type, set it to more standard NumPy or Python types
     data = data.astype(float)
     hist, _, indices = histogram(data)
+    assert np.array_equal(hist, expected_hist)
+    assert np.array_equal(indices, expected_indices)
+
+def test_full_size(data_dir):
+    # Read the histogram file
+    data, binsize, min, expected_hist, expected_indices = get_data_items(
+        Path(data_dir, 'full_size'),
+        'input_1.npy',
+        'binsize_1.npy', 
+        'min_1.npy', 
+        'output_1.npy', 
+        'reverse_indices_1.npy'
+    )
+    # Now that we're using numba it doesn't support every type, set it to more standard NumPy or Python types
+    data = data.astype(float)
+    hist, _, indices = histogram(data, bin_size = binsize, min = min)
     assert np.array_equal(hist, expected_hist)
     assert np.array_equal(indices, expected_indices)

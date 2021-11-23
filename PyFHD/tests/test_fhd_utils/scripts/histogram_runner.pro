@@ -36,6 +36,11 @@ PRO histogram_runner
 
     one_billion_floats_hist = histogram(one_billion, reverse_indices = one_billion_floats_inds)
 
+    ; Test large bin size and large data
+    oneB_large_nums = RANDOMU(42,1e9, /DOUBLE)*1e6
+
+    oneB_large_hist = HISTOGRAM(oneB_large_nums, reverse_indices = oneB_large_inds) 
+
     ;Adjust the path as required on the system you're running
     SAVE, /VARIABLES, FILENAME = 'histogram.sav'
 END

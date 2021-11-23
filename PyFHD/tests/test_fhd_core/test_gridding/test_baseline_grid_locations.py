@@ -46,16 +46,17 @@ def test_baseline_one(data_dir):
     )
     # Use the baseline grid locations function
     baselines_dict = baseline_grid_locations(obs, psf, params, vis_weights, fi_use = fi_use, interp_flag = interp_flag)
+    print(np.nonzero(np.abs(baselines_dict['ymin'] - expected_ymin)))
     # Check we got the right results from the dictionary
+    assert np.array_equal(expected_vis_inds_use, baselines_dict['vis_inds_use'])
+    assert np.array_equal(expected_x_offset, baselines_dict['x_offset'])
+    assert np.array_equal(expected_y_offset, baselines_dict['y_offset'])
+    assert np.array_equal(expected_xmin, baselines_dict['xmin'])
+    assert np.array_equal(expected_ymin, baselines_dict['ymin'])
     assert np.array_equal(expected_bin_n, baselines_dict['bin_n'])
     assert np.array_equal(expected_bin_i, baselines_dict['bin_i'])
     assert expected_n_bin_use == baselines_dict['n_bin_use']
     assert np.array_equal(expected_ri, baselines_dict['ri'])
-    assert np.array_equal(expected_xmin, baselines_dict['xmin'])
-    assert np.array_equal(expected_ymin, baselines_dict['ymin'])
-    assert np.array_equal(expected_vis_inds_use, baselines_dict['vis_inds_use'])
-    assert np.array_equal(expected_x_offset, baselines_dict['x_offset'])
-    assert np.array_equal(expected_y_offset, baselines_dict['y_offset'])
     assert np.array_equal(expected_dx0dy0, baselines_dict['dx0dy0_arr'])
     assert np.array_equal(expected_dx0dy1, baselines_dict['dx0dy1_arr'])
     assert np.array_equal(expected_dx1dy0, baselines_dict['dx1dy0_arr'])
@@ -94,14 +95,14 @@ def test_baseline_two(data_dir):
     # Use the baseline grid locations function
     baselines_dict = baseline_grid_locations(obs, psf, params, vis_weights, fi_use = fi_use, interp_flag = interp_flag, fill_model_visibilities = fill_model_vis)
     # Check we got the right results from the dictionary
+    assert np.array_equal(expected_x_offset, baselines_dict['x_offset'])
+    assert np.array_equal(expected_y_offset, baselines_dict['y_offset'])
+    assert np.array_equal(expected_xmin, baselines_dict['xmin'])
+    assert np.array_equal(expected_ymin, baselines_dict['ymin'])
     assert np.array_equal(expected_bin_n, baselines_dict['bin_n'])
     assert np.array_equal(expected_bin_i, baselines_dict['bin_i'])
     assert expected_n_bin_use == baselines_dict['n_bin_use']
     assert np.array_equal(expected_ri, baselines_dict['ri'])
-    assert np.array_equal(expected_xmin, baselines_dict['xmin'])
-    assert np.array_equal(expected_ymin, baselines_dict['ymin'])
-    assert np.array_equal(expected_x_offset, baselines_dict['x_offset'])
-    assert np.array_equal(expected_y_offset, baselines_dict['y_offset'])
     assert np.array_equal(expected_dx0dy0, baselines_dict['dx0dy0_arr'])
     assert np.array_equal(expected_dx0dy1, baselines_dict['dx0dy1_arr'])
     assert np.array_equal(expected_dx1dy0, baselines_dict['dx1dy0_arr'])
@@ -141,15 +142,15 @@ def test_baseline_three(data_dir):
     # Use the baseline grid locations function
     baselines_dict = baseline_grid_locations(obs, psf, params, vis_weights, fi_use = fi_use, interp_flag = interp_flag, bi_use = bi_use)
     # Check we got the right results from the dictionary
+    assert np.array_equal(expected_vis_inds_use, baselines_dict['vis_inds_use'])
+    assert np.array_equal(expected_x_offset, baselines_dict['x_offset'])
+    assert np.array_equal(expected_y_offset, baselines_dict['y_offset'])
+    assert np.array_equal(expected_xmin, baselines_dict['xmin'])
+    assert np.array_equal(expected_ymin, baselines_dict['ymin'])
     assert np.array_equal(expected_bin_n, baselines_dict['bin_n'])
     assert np.array_equal(expected_bin_i, baselines_dict['bin_i'])
     assert expected_n_bin_use == baselines_dict['n_bin_use']
     assert np.array_equal(expected_ri, baselines_dict['ri'])
-    assert np.array_equal(expected_xmin, baselines_dict['xmin'])
-    assert np.array_equal(expected_ymin, baselines_dict['ymin'])
-    assert np.array_equal(expected_vis_inds_use, baselines_dict['vis_inds_use'])
-    assert np.array_equal(expected_x_offset, baselines_dict['x_offset'])
-    assert np.array_equal(expected_y_offset, baselines_dict['y_offset'])
     assert np.array_equal(expected_dx0dy0, baselines_dict['dx0dy0_arr'])
     assert np.array_equal(expected_dx0dy1, baselines_dict['dx0dy1_arr'])
     assert np.array_equal(expected_dx1dy0, baselines_dict['dx1dy0_arr'])
