@@ -1,4 +1,3 @@
-from numpy.lib.function_base import interp
 import pytest
 import numpy as np
 from pathlib import Path
@@ -46,7 +45,6 @@ def test_baseline_one(data_dir):
     )
     # Use the baseline grid locations function
     baselines_dict = baseline_grid_locations(obs, psf, params, vis_weights, fi_use = fi_use, interp_flag = interp_flag)
-    print(np.nonzero(np.abs(baselines_dict['ymin'] - expected_ymin)))
     # Check we got the right results from the dictionary
     assert np.array_equal(expected_vis_inds_use, baselines_dict['vis_inds_use'])
     # Since precision errors from xcen and ycen impact the offsets check that the 

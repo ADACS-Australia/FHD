@@ -63,7 +63,7 @@ def baseline_grid_locations(obs, psf, params, vis_weights, bi_use = None, fi_use
     if fill_model_visibilities:
         fi_use = np.arange(n_freq)
     elif fi_use is None:
-        fi_use = np.where(b_info['freq_use'])
+        fi_use = np.nonzero(b_info[0]['freq_use'][0])[0]
     frequency_array = b_info[0]['freq'][0]
     frequency_array = frequency_array[fi_use]
     n_freq_use = frequency_array.size
@@ -82,7 +82,7 @@ def baseline_grid_locations(obs, psf, params, vis_weights, bi_use = None, fi_use
         # if the data is being gridded separately for the even/odd time samples
         # then force flagging to be consistent across even/odd sets
         if not fill_model_visibilities:
-            flag_test = np.sum(vis_weights, axis = 1)
+            flag_test = np.sum(vis_weights, axis = -1)
             bi_use = np.where(flag_test > 0)[0]
         else:
             tile_use = np.arange(n_tile) + 1
@@ -94,6 +94,7 @@ def baseline_grid_locations(obs, psf, params, vis_weights, bi_use = None, fi_use
     n_f_use = fi_use.size
     # matrix_multiply is not what it seems for 1D arrays, had to do this to replicate!
     vis_inds_use = (np.outer(np.ones(n_b_use), fi_use) + np.outer(bi_use, np.ones(n_f_use)) * n_freq).astype(int)
+    print(vis_inds_use.shape)
     # Since the indices in vis_inds_use apply to a flattened array, flatten. Leave vis_inds_use as it to have the shape go back to the right shape.
     vis_weights = vis_weights.flatten()[vis_inds_use]
 
