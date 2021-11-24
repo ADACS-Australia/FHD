@@ -86,7 +86,7 @@ def baseline_grid_locations(obs, psf, params, vis_weights, bi_use = None, fi_use
             bi_use = np.where(flag_test > 0)[0]
         else:
             tile_use = np.arange(n_tile) + 1
-            bi_use, _ = array_match(b_info['tile_A'], tile_use, array_2 = b_info['tile_B'])
+            bi_use, _ = array_match(b_info[0]['tile_a'][0], tile_use, array_2 = b_info[0]['tile_b'][0])
     
     # Calculate indices of visibilities to grid during this call (i.e. specific freqs, time sets)
     # and initialize output arrays
@@ -121,8 +121,8 @@ def baseline_grid_locations(obs, psf, params, vis_weights, bi_use = None, fi_use
     ycen = np.outer(ky_arr, frequency_array)
 
     # Pixel number offset per baseline for each uv-box subset
-    x_offset = np.fix(np.floor(xcen - np.floor(xcen)) * psf_resolution) % psf_resolution
-    y_offset = np.fix(np.floor(ycen - np.floor(ycen)) * psf_resolution) % psf_resolution
+    x_offset = np.fix(np.floor((xcen - np.floor(xcen)) * psf_resolution) % psf_resolution)
+    y_offset = np.fix(np.floor((ycen - np.floor(ycen)) * psf_resolution) % psf_resolution)
 
     if interp_flag:
         # Derivatives from pixel edge to baseline center for use in interpolation
