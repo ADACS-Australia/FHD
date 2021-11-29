@@ -94,7 +94,7 @@ def baseline_grid_locations(obs, psf, params, vis_weights, bi_use = None, fi_use
     n_f_use = fi_use.size
     # matrix_multiply is not what it seems for 1D arrays, had to do this to replicate!
     vis_inds_use = (np.outer(np.ones(n_b_use), fi_use) + np.outer(bi_use, np.ones(n_f_use)) * n_freq).astype(int)
-    print(vis_inds_use.shape)
+    
     # Since the indices in vis_inds_use apply to a flattened array, flatten. Leave vis_inds_use as it to have the shape go back to the right shape.
     vis_weights = vis_weights.flatten()[vis_inds_use]
 
@@ -169,21 +169,30 @@ def baseline_grid_locations(obs, psf, params, vis_weights, bi_use = None, fi_use
 
     if mask_mirror_indices:
         # Option to exclude v-axis mirrored baselines
-        if conj_i[0].size > 0:
+        if conj_i.size > 0:
             xmin[conj_i, :] = -1
             ymin[conj_i, :] = -1
-    
-    # Match all visibilities that map from and to exactly the same pixels and store them as a histogram in bin_n
-    # with their respective index ri. Setting min equal to 0, excludes flagged data (data set to -1).
-    for_hist = xmin + ymin * dimension
-    bin_n, _ , ri = histogram(for_hist, min = 0)
-    bin_i = np.nonzero(bin_n)[0]
 
-    # Update the baselines_dict which gets returned
-    baselines_dict['bin_n'] = bin_n
-    baselines_dict['bin_i'] = bin_i
-    baselines_dict['n_bin_use'] = bin_i.size
-    baselines_dict['ri'] = ri
+    # If xmin or ymin is invalid then adjust the baselines dict as necessary
+    if xmin.size == 0 or ymin.size == 0 or np.max([np.max(xmin), np.max(ymin)]) < 0:
+        print('WARNING: All data flagged or cut!')
+        baselines_dict['bin_n'] = 0
+        baselines_dict['n_bin_use'] = 0
+        baselines_dict['bin_i'] = -1
+        baselines_dict['ri'] = 0
+    else:
+        # Match all visibilities that map from and to exactly the same pixels and store them as a histogram in bin_n
+        # with their respective index ri. Setting min equal to 0, excludes flagged data (data set to -1).
+        for_hist = xmin + ymin * dimension
+        bin_n, _ , ri = histogram(for_hist, min = 0)
+        bin_i = np.nonzero(bin_n)[0]
+
+        # Update the baselines_dict which gets returned
+        baselines_dict['bin_n'] = bin_n
+        baselines_dict['bin_i'] = bin_i
+        baselines_dict['n_bin_use'] = bin_i.size
+        baselines_dict['ri'] = ri
+    # Add values to baselines dict
     baselines_dict['xmin'] = xmin
     baselines_dict['ymin'] = ymin
     baselines_dict['vis_inds_use'] = vis_inds_use

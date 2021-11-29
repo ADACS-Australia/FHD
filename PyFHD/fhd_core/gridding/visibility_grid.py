@@ -179,7 +179,7 @@ def visibility_grid(visibility, vis_weights, obs, status_str, psf, params,
             model_use[conj_i, :] = np.conj(model_use[conj_i, :])
     
     # Return if all baselines have been flagged
-    if np.min(np.max(xmin), np.max(ymin)) < 0:
+    if n_bin_use == 0:
         print("All data has been flagged")
         return np.zeros([elements, dimension], dtype = complex)
     
