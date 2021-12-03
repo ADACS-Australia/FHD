@@ -1,10 +1,10 @@
 import numpy as np
 import warnings
-from calculate_adaptive_gain import calculate_adaptive_gain
+from fhd_core.calibration.calculate_adaptive_gain import calculate_adaptive_gain
 from fhd_utils.weight_invert import weight_invert
 from fhd_utils.histogram import histogram
 
-def vis_calibrate_subroutine(vis_ptr, vis_model_ptr, vis_weight_ptr, obs, cal, preserve_visibilities = False, 
+def vis_calibrate_subroutine(vis_ptr, vis_model_ptr, vis_weight_ptr, obs, cal, 
                              calibration_weights = False,  no_ref_tile = True):
     """[summary]
 
@@ -28,52 +28,51 @@ def vis_calibrate_subroutine(vis_ptr, vis_model_ptr, vis_weight_ptr, obs, cal, p
         [description], by default True
     """
     # Retrieve values from data structures
-    reference_tile = cal['ref_antenna']
-    min_baseline = obs['min_baseline']
-    max_baseline = obs['max_baseline']
-    dimension = obs['dimension']
-    elements = obs['elements']
-    min_cal_baseline = cal['min_cal_baseline']
-    max_cal_baseline = cal['max_cal_baseline']
+    reference_tile = cal['ref_antenna'][0]
+    min_baseline = obs['min_baseline'][0]
+    max_baseline = obs['max_baseline'][0]
+    dimension = obs['dimension'][0]
+    elements = obs['elements'][0]
+    min_cal_baseline = cal['min_cal_baseline'][0]
+    max_cal_baseline = cal['max_cal_baseline'][0]
     # minimum number of calibration equations needed to solve for the gain of one baseline
-    min_cal_solutions = cal['min_solns']
+    min_cal_solutions = cal['min_solns'][0]
     # average the visibilities across time steps before solving for the gains
-    time_average = cal['time_avg']
+    time_average = cal['time_avg'][0]
     # maximum iterations to perform for the linear least-squares solver
-    max_cal_iter = cal['max_iter']
+    max_cal_iter = cal['max_iter'][0]
     # Leave a warning if its less than 5 iterations
     if max_cal_iter < 5:
         warnings.warn("At Least 5 calibrations iterations is recommended.\nYou're currently using {} iterations".format(int(max_cal_iter)))
-    conv_thresh = cal['conv_thresh']
-    use_adaptive_gain = cal['adaptive_gain']
-    base_gain = cal['base_gain']
+    conv_thresh = cal['conv_thresh'][0]
+    use_adaptive_gain = cal['adaptive_gain'][0]
+    base_gain = cal['base_gain'][0]
     # halt if the strict convergence is worse than most of the last x iterations
     divergence_history = 3
     # halt if the convergence gets significantly worse by a factor of x in one iteration
     divergence_factor = 1.5
-    n_pol = cal['n_pol']
-    n_freq = cal['n_freq']
-    n_tile = cal['n_tile']
-    n_time = cal['n_time']
+    n_pol = cal['n_pol'][0]
+    n_freq = cal['n_freq'][0]
+    n_tile = cal['n_tile'][0]
+    n_time = cal['n_time'][0]
     # weights WILL be over-written! (Only for NAN gain solutions)
     vis_weight_ptr_use = vis_weight_ptr
     # tile_A & tile_B contribution indexed from 0
-    tile_A_i = cal['tile_A'] - 1
-    tile_A_i = cal['tile_B'] - 1
-    freq_arr = cal['freq']
-    bin_offset = cal['bin_offset']
-    n_baselines = obs['n_baselines']
+    tile_A_i = cal['tile_a'][0] - 1
+    tile_B_i = cal['tile_b'][0] - 1
+    freq_arr = cal['freq'][0]
+    n_baselines = obs['nbaselines'][0]
     if 'phase_iter' in cal.dtype.names:
-        phase_fit_iter = cal['phase_iter']
+        phase_fit_iter = cal['phase_iter'][0]
     else:
-        phase_fit_iter = np.min(np.floor(max_cal_iter / 4), 4)
-    kbinsize = obs['kpix']
+        phase_fit_iter = np.min([np.floor(max_cal_iter / 4), 4])
+    kbinsize = obs['kpix'][0]
     cal_return = cal
 
     for pol_i in range(n_pol):
         convergence = np.zeros(n_tile, n_freq)
         conv_iter_arr = np.zeros(n_tile, n_freq)
-        gain_arr = cal['gain'][pol_i]
+        gain_arr = cal['gain'][0][pol_i]
 
         # Average the visibilities over the time steps before solving for the gains solutions
         # This is not recommended, as longer baselines will be downweighted artifically.
@@ -85,29 +84,31 @@ def vis_calibrate_subroutine(vis_ptr, vis_model_ptr, vis_weight_ptr, obs, cal, p
             # So IDL does reforms as REFORM(x, cols, rows, num_of_col_row_arrays)
             # Python is row-major, so we need to flip that shape that is used in REFORM
             shape = np.flip(np.array([n_freq, n_baselines, n_time]))
-            vis_weight_use = np.min(np.max(0, np.reshape(vis_weight_ptr_use[pol_i], shape)), 1)
+            vis_weight_use = np.maximum(np.reshape(vis_weight_ptr_use[pol_i], shape), 0)
+            vis_weight_use = np.minimum(vis_weight_use, 1)
             vis_model = np.reshape(vis_model_ptr[pol_i], shape)
             vis_model = np.sum(vis_model * vis_weight_use, axis = 0)
             vis_measured = np.reshape(vis_ptr[pol_i], shape)
             vis_avg = np.sum(vis_measured * vis_weight_use, axis = 0)
             weight = np.sum(vis_weight_use, axis = 0)
 
-            kx_arr = cal['uu'][0 : n_baselines] / kbinsize
-            ky_arr = cal['vv'][0 : n_baselines] / kbinsize
+            kx_arr = cal['uu'][0][0 : n_baselines] / kbinsize
+            ky_arr = cal['vv'][0][0 : n_baselines] / kbinsize
         else:
             # In the case of not using a time_average do the following setup instead for weight and vis_avg
-            vis_weight_use = np.min(np.max(0, vis_weight_ptr_use[pol_i]), 1)
+            vis_weight_use = np.min([np.max([0, vis_weight_ptr_use[pol_i]]), 1])
             vis_model = vis_model * vis_weight_use
             vis_avg = vis_ptr[pol_i] * vis_weight_use
             weight = vis_weight_use
 
-            kx_arr = cal['uu'] / kbinsize
-            ky_arr = cal['vv'] / kbinsize
+            kx_arr = cal['uu'][0] / kbinsize
+            ky_arr = cal['vv'][0] / kbinsize
         # Now use the common code from the two possibilities in vis_calibrate_subroutine.pro 
         kr_arr = np.sqrt(kx_arr ** 2 + ky_arr ** 2)
-        dist_arr = np.dot(kr_arr, freq_arr) * kbinsize
-        xcen = np.dot(abs(kx_arr), freq_arr)
-        ycen = np.dot(abs(ky_arr), freq_arr)
+        # When IDL does a matrix multiply on two 1D vectors it does the outer product.
+        dist_arr = np.outer(kr_arr, freq_arr) * kbinsize
+        xcen = np.outer(abs(kx_arr), freq_arr)
+        ycen = np.outer(abs(ky_arr), freq_arr)
         if calibration_weights:
             flag_dist_cut = np.where((dist_arr < min_baseline) | (xcen > (elements / 2)) | (ycen > (dimension / 2)))
             if min_cal_baseline > min_baseline:
@@ -129,8 +130,8 @@ def vis_calibrate_subroutine(vis_ptr, vis_model_ptr, vis_weight_ptr, obs, cal, p
         vis_avg *= weight_invert(weight)
         vis_model *= weight_invert(weight)
 
-        tile_use_flag = obs['baseline_info']['tile_use']
-        freq_use_flag = obs['baselien_info']['freq_use']
+        tile_use_flag = obs['baseline_info'][0]['tile_use'][0]
+        freq_use_flag = obs['baseline_info'][0]['freq_use'][0]
 
         freq_weight = np.sum(weight, axis = 0)
         baseline_weight = np.sum(weight, axis = 1)
@@ -138,7 +139,7 @@ def vis_calibrate_subroutine(vis_ptr, vis_model_ptr, vis_weight_ptr, obs, cal, p
         baseline_use = np.nonzero(baseline_weight)
         hist_tile_A, _, riA = histogram(tile_A_i[baseline_use], min = 0, max = n_tile - 1)
         hist_tile_B, _, riB = histogram(tile_B_i[baseline_use], min = 0, max = n_tile - 1)
-        tile_use = np.where(((hist_tile_A + hist_tile_B) > 0) & (tile_use_flag > 0))
+        tile_use = np.where(((hist_tile_A + hist_tile_B) > 0) & (tile_use_flag > 0))[0]
 
         tile_A_i_use = np.zeros(np.size(baseline_use))
         tile_B_i_use = np.zeros(np.size(baseline_use))
@@ -151,7 +152,7 @@ def vis_calibrate_subroutine(vis_ptr, vis_model_ptr, vis_weight_ptr, obs, cal, p
                 tile_B_i_use[riB[riB[tile_use[tile_i]] : riB[tile_use[tile_i] + 1] - 1]] = tile_i
 
         ref_tile_use = np.where(reference_tile == tile_use)
-        if ref_tile_use.size == 0:
+        if ref_tile_use[0].size == 0:
             ref_tile_use = 0
             # Are we returning cal?
             cal['ref_antenna'] = tile_use[ref_tile_use]
@@ -160,9 +161,9 @@ def vis_calibrate_subroutine(vis_ptr, vis_model_ptr, vis_weight_ptr, obs, cal, p
         # Replace all NaNs with 0's
         vis_model[np.isnan(vis_model)] = 0
 
-        conv_test = np.zeros((freq_use.size, max_cal_iter))
+        conv_test = np.zeros((freq_use[0].size, max_cal_iter))
         n_converged = 0
-        for fii in range(freq_use.size):
+        for fii in range(freq_use[0].size):
             fi = freq_use[fii]
             gain_curr = np.squeeze(gain_arr[tile_use, fi])
             # Set up data and model arrays of the original and conjugated versions. This

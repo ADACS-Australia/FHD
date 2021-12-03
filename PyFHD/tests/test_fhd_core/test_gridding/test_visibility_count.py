@@ -1,7 +1,6 @@
 import pytest
 import numpy as np
 from pathlib import Path
-
 from tests.test_utils import get_data, get_data_items
 from fhd_core.gridding.visibility_count import visibility_count
 
