@@ -17,8 +17,8 @@ def fft_shift(image):
     # elements is rows, dimension is columns
     elements, dimension = image.shape
     # To get the same shift behaviour with np.roll as IDL's shift we do columns first
-    shifted = np.roll(image, dimension / 2, axis = 1)
+    shifted = np.roll(image, dimension // 2, axis = 1)
     # Then we do the rows
-    shifted = np.roll(shifted, elements / 2, axis = 0)
+    shifted = np.roll(shifted, elements // 2, axis = 0)
     # Return the shifted image
     return shifted
