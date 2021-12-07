@@ -19,8 +19,8 @@ def test_dirty_one(data_dir):
         dirty_image_uv, 
         not_real = no_real
     )
-    assert 1e-14 > np.max(np.abs(expected_dirty_image.real - dirty_image.real))
-    assert 1e-14 > np.max(np.abs(expected_dirty_image.imag - dirty_image.imag))
+    assert 1e-16 > np.max(np.abs(expected_dirty_image.real - dirty_image.real))
+    assert 1e-16 > np.max(np.abs(expected_dirty_image.imag - dirty_image.imag))
 
 def test_dirty_two(data_dir):
     dirty_image_uv, no_real, degpix, expected_dirty_image, expected_normalization = get_data_items(
@@ -56,7 +56,7 @@ def test_dirty_three(data_dir):
         degpix = degpix, 
         baseline_threshold = baseline_threshold
     )
-    assert 1e-14 > np.max(np.abs(expected_dirty_image.real - dirty_image.real))
+    assert 1e-10 > np.max(np.abs(expected_dirty_image.real - dirty_image.real))
     assert 1e-14 > np.max(np.abs(expected_dirty_image.imag - dirty_image.imag))
 
 def test_dirty_four(data_dir):
@@ -76,7 +76,7 @@ def test_dirty_four(data_dir):
         baseline_threshold = baseline_threshold,
         width_smooth = width_smooth
     )
-    assert 1e-14 > np.max(np.abs(expected_dirty_image.real - dirty_image.real))
+    assert 1e-10 > np.max(np.abs(expected_dirty_image.real - dirty_image.real))
     assert 1e-14 > np.max(np.abs(expected_dirty_image.imag - dirty_image.imag))
 
 def test_dirty_five(data_dir):
@@ -110,10 +110,11 @@ def test_dirty_six(data_dir):
         dirty_image_uv, 
         not_real = no_real, 
         degpix = degpix, 
-        resize = resize
+        resize = int(resize)
     )
-    assert 1e-14 > np.max(np.abs(expected_dirty_image.real - dirty_image.real))
-    assert 1e-14 > np.max(np.abs(expected_dirty_image.imag - dirty_image.imag))
+    # REBIN in IDL is single precision so see if it matches single precision
+    assert 1e-8 > np.max(np.abs(expected_dirty_image.real - dirty_image.real))
+    assert 1e-8 > np.max(np.abs(expected_dirty_image.imag - dirty_image.imag))
 
 def test_dirty_seven(data_dir):
     dirty_image_uv, no_real, degpix, pad_uv_image, expected_dirty_image = get_data_items(
@@ -130,8 +131,9 @@ def test_dirty_seven(data_dir):
         degpix = degpix, 
         pad_uv_image = pad_uv_image
     )
-    assert 1e-14 > np.max(np.abs(expected_dirty_image.real - dirty_image.real))
-    assert 1e-14 > np.max(np.abs(expected_dirty_image.imag - dirty_image.imag))
+    # Set to single precision threshold as the division by radians will be single precision.
+    assert 1e-8 > np.max(np.abs(expected_dirty_image.real - dirty_image.real))
+    assert 1e-8 > np.max(np.abs(expected_dirty_image.imag - dirty_image.imag))
 
 def test_dirty_eight(data_dir):
     dirty_image_uv, no_real, degpix, filter, expected_dirty_image = get_data_items(
@@ -175,5 +177,5 @@ def test_dirty_nine(data_dir):
         params = params,
         weights = weights
     )
-    assert 1e-14 > np.max(np.abs(expected_dirty_image.real - dirty_image.real))
-    assert 1e-14 > np.max(np.abs(expected_dirty_image.imag - dirty_image.imag))
+    assert 1e-16 > np.max(np.abs(expected_dirty_image.real - dirty_image.real))
+    assert 1e-16 > np.max(np.abs(expected_dirty_image.imag - dirty_image.imag))

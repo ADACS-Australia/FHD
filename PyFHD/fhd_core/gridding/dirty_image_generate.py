@@ -3,9 +3,10 @@ from fhd_utils.modified_astro.meshgrid import meshgrid
 from fhd_output.fft_filters.filter_uv_uniform import filter_uv_uniform
 from fhd_utils.rebin import rebin
 from math import sqrt
-from astropy.convolution import convolve, Box2DKernel
+from scipy.signal import convolve
+from astropy.convolution import Box2DKernel
 
-def dirty_image_generate(dirty_image_uv, mask = None, baseline_threshold = None, normalization = None,
+def dirty_image_generate(dirty_image_uv, mask = None, baseline_threshold = 0, normalization = None,
                          resize = None, width_smooth = None, degpix = None, not_real = False,
                          image_filter_fn = 'filter_uv_uniform', pad_uv_image = None, filter = None,
                          vis_count = None, weights = None, beam_ptr = None, obs = None, psf = None, params = None, 
@@ -66,21 +67,31 @@ def dirty_image_generate(dirty_image_uv, mask = None, baseline_threshold = None,
     if baseline_threshold is not None:
         # If width smooth hasn't been set, set it
         if width_smooth is None:
-            width_smooth = np.floor(sqrt(dimension * elements) / 100)
+            width_smooth = np.floor(np.sqrt(dimension * elements) / 100)    
         rarray = np.sqrt((meshgrid(dimension, 1) - dimension / 2) ** 2 + (meshgrid(elements, 2) - elements / 2) ** 2)
         # Get all the values that meet the threshold
         if baseline_threshold >= 0:
-            cut_i = np.where(rarray < baseline_threshold)
+            cut_i = np.where(rarray.flatten() < baseline_threshold)
         else:
-            cut_i = np.where(rarray > np.abs(baseline_threshold))
+            cut_i = np.where(rarray.flatten() > np.abs(baseline_threshold))
         # Create the mask array of ones
         mask_bt = np.ones((elements, dimension))
         # If there are values from cut, then use all those here and replace with 0
         if np.size(cut_i) > 0:
-            mask_bt[cut_i] = 0
+            mask_bt_flatiter = mask_bt.flat
+            mask_bt_flatiter[cut_i] = 0
         if width_smooth is not None:
-            # Use a box width averaging filter over the mask
-            mask_bt = convolve(mask_bt, Box2DKernel(width_smooth > 1))    
+            # Get the kernel width
+            kernel_width = np.max([width_smooth,1])
+            # In IDL if the kernel width is even one is added to make it odd
+            if kernel_width % 2 == 0:
+                kernel_width += 1
+            # Use a box width averaging filter over the mask, use valid so we can insert it in later
+            box_averages = convolve(mask_bt, Box2DKernel(kernel_width), mode = 'valid')
+            # Since IDL SMOOTH edges by default are the edges of the array used, ignore edges (its the reason why we used a valid convolve)
+            start = int(kernel_width // 2)
+            end = int(mask_bt.shape[1] - (kernel_width // 2))
+            mask_bt[start : end, start : end] = box_averages  
         # Apply boxed mask to the dirty image
         di_uv_use *=  mask_bt
     
@@ -90,7 +101,7 @@ def dirty_image_generate(dirty_image_uv, mask = None, baseline_threshold = None,
     
     # If a filter was supplied as a numpy array (we can adjust this to support different formats)
     if filter is not None:
-        if isinstance(np.ndarray):
+        if isinstance(filter, np.ndarray):
             # If the filter is already the right size, use it
             if np.size(filter) == np.size(di_uv_use):
                 di_uv_use *= filter
@@ -110,12 +121,13 @@ def dirty_image_generate(dirty_image_uv, mask = None, baseline_threshold = None,
         # Combine real and complex back together
         di_uv_use = di_uv_real + di_uv_img * 1j
     
-    #Apply padding if it was supplied
+    # Apply padding if it was supplied
     if pad_uv_image is not None:
-        dimension_new = np.maximum((np.maximum(dimension, elements) * pad_uv_image), np.maximum(dimension, elements))
-        di_uv1 = np.zeros((dimension_new, dimension_new), dtype = "complex")
-        di_uv1[dimension_new / 2 - elements / 2 : dimension_new / 2 + elements / 2 - 1,
-               dimension_new / 2 - dimension / 2 : dimension_new / 2 + dimension / 2 - 1]
+        # dimension_new = int(np.max([np.max([dimension, elements]) * pad_uv_image, np.max([dimension, elements])]))
+        # di_uv1 = np.zeros((dimension_new, dimension_new), dtype = "complex")
+        # di_uv1[dimension_new // 2 - elements // 2 : dimension_new // 2 + elements // 2,
+        #        dimension_new // 2 - dimension // 2 : dimension_new // 2 + dimension // 2] = di_uv_use
+        di_uv1 = np.pad(di_uv_use, np.max([dimension, elements]) // 2)
         di_uv_use = di_uv1 * (pad_uv_image ** 2)
     
     # FFT normalization
