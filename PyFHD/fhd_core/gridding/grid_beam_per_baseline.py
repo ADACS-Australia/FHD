@@ -1,13 +1,11 @@
 import numpy as np
-import dirty_image_generate
+from fhd_core.gridding.dirty_image_generate import dirty_image_generate
 from math import pi
 
 def grid_beam_per_baseline(psf, uu, vv, ww, l_mode, m_mode, n_tracked, frequency_array, x, y,
                            xmin_use, ymin_use, freq_i, bt_index, polarization, fbin, image_bot, 
-                           image_top, psf_dim3, box_matrix, vis_n, beam_int = None, beam2_int = None,
-                           n_grp_use = None, degrid_flag = False, beam_clip_floor = False,
-                           obs = None, params = None, weights = None, fi_use = None, bi_use = None,
-                           mask_mirror_indices = None):
+                           image_top, psf_dim3, box_matrix, vis_n, beam_clip_floor = False, beam_int = None, 
+                           beam2_int = None, n_grp_use = None, degrid_flag = False):
     """
     TODO: Docstring
 
@@ -79,15 +77,19 @@ def grid_beam_per_baseline(psf, uu, vv, ww, l_mode, m_mode, n_tracked, frequency
     # Loop over all visibilities that fall within the chosen visibility box
     for ii in range(vis_n):
         # Pixel center offset phases
-        deltau_l = l_mode * (uu[bt_index[ii]] * frequency_array[freq_i[ii]] - x[xmin_use + psf['dim'] / 2])
-        deltav_m = m_mode * (vv[bt_index[ii]] * frequency_array[freq_i[ii]] - y[ymin_use + psf['dim'] / 2])
+        deltau_l = l_mode * (uu[bt_index[ii]] * frequency_array[freq_i[ii]] - x[xmin_use + psf['dim'][0] // 2])
+        deltav_m = m_mode * (vv[bt_index[ii]] * frequency_array[freq_i[ii]] - y[ymin_use + psf['dim'][0] // 2])
         # w term offset phase
         w_n_tracked = n_tracked * ww[bt_index[ii]] * frequency_array[freq_i[ii]]
 
         # Generate a UV beam from the image space beam, offset by calculated phases
-        psf_base_superres = dirty_image_generate(psf['image_info']['image_power_beam_arr'][fbin[ii], polarization] * \
-                                                 np.exp(2 * pi * (0 + 1j) * (-w_n_tracked + deltau_l + deltav_m)))
-        psf_base_superres = psf_base_superres[image_bot: image_top, image_bot : image_top]
+        psf_base_superres = dirty_image_generate(
+            psf['image_info'][0]['image_power_beam_arr'][fbin[ii]][polarization] * \
+            np.exp(2 * pi * (0 + 1j) * \
+            (-w_n_tracked + deltau_l + deltav_m)),
+            not_real = True
+        )
+        psf_base_superres = psf_base_superres[image_bot: image_top + 1, image_bot : image_top + 1]
 
         # A quick way to sum down the image by a factor of 2 in both dimensions.
         # A 4x4 example where we sum down by a factor of 2
@@ -105,17 +107,20 @@ def grid_beam_per_baseline(psf, uu, vv, ww, l_mode, m_mode, n_tracked, frequency
         #                      15 16   
         d = psf_base_superres.shape
         # Note columns and rows are swapped from IDL so nx is now rows!
-        nx = d[0] / psf['resolution']
-        ny = d[1] / psf['resolution']
+        nx = d[0] // psf['resolution'][0]
+        ny = d[1] // psf['resolution'][0]
         # The same result of IDL in numpy is np.reshape, with shape swapping rows and columns, then doing transpose of this shape
-        psf_base_superres = np.reshape(psf_base_superres,[psf['resolution'] * ny, psf['resolution'], nx])
+        psf_base_superres = np.reshape(psf_base_superres,[psf['resolution'][0] * ny, nx, psf['resolution'][0]])
         psf_base_superres = np.transpose(psf_base_superres, [1,0,2])
-        psf_base_superres = np.reshape(psf_base_superres, [nx,psf.resolution ** 2,ny])
+        psf_base_superres = np.reshape(psf_base_superres, [ny, nx, psf['resolution'][0] ** 2])
         psf_base_superres = np.sum(psf_base_superres, -1)
         psf_base_superres = np.transpose(psf_base_superres)
 
         psf_base_superres = np.reshape(psf_base_superres, psf['dim'] ** 2)
-        box_matrix[psf_dim3 * ii] = psf_base_superres
+        start = psf_dim3 * ii
+        end = start + psf_base_superres.size
+        box_matrix_iter = box_matrix.flat
+        box_matrix_iter[start : end] = psf_base_superres
     
     # Subtract off a small clip, set negative indices to 0, and renomalize.
     # This is a modification of the look-up-table beam using a few assumptions
@@ -124,17 +129,17 @@ def grid_beam_per_baseline(psf, uu, vv, ww, l_mode, m_mode, n_tracked, frequency
     # rather than individually. region_grow is not used to find a contiguous
     # edge around the beam to cut because it is too slow.
     if beam_clip_floor:
-        psf_val_ref = np.sum(box_matrix, 0)
+        psf_val_ref = np.sum(box_matrix, 1)
         psf_amp = np.abs(box_matrix)
-        psf_mask_threshold_use = np.max(psf_amp / psf['beam_mask_threshold'])
+        psf_mask_threshold_use = np.max(psf_amp) / psf['beam_mask_threshold']
         psf_amp -= psf_mask_threshold_use
-        psf_phase = np.arctan(box_matrix)
-        psf_amp = np.max(psf_amp, 0)
+        psf_phase = np.arctan2(box_matrix.imag, box_matrix.real)
+        psf_amp = np.maximum(psf_amp, np.zeros_like(psf_amp))
         box_matrix = psf_amp * np.cos(psf_phase) + (0 + 1j) * psf_amp * np.sin(psf_phase)
-        ref_temp = np.sum(box_matrix, 0)
-        box_matrix[0:vis_n, :] *= psf_val_ref[np.arange(vis_n)] / ref_temp[np.arange(vis_n)]
+        ref_temp = np.sum(box_matrix, -1)
+        box_matrix[:vis_n, :] *=  np.reshape(psf_val_ref / ref_temp, (psf_val_ref.size, 1))
     
-    if degrid_flag:
+    if degrid_flag and beam_int is not None and beam2_int is not None and n_grp_use is not None:
         # Calculate the beam and beam^2 integral (degridding)
         psf_resolution = psf['resolution']
         beam_int_temp = np.sum(box_matrix, 0) / psf_resolution ** 2

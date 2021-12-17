@@ -1,5 +1,4 @@
 import numpy as np
-from numpy.core.fromnumeric import transpose
 from fhd_utils.FFT.deriv_coefficients import deriv_coefficients
 from fhd_utils.histogram import histogram
 from baseline_grid_locations import baseline_grid_locations

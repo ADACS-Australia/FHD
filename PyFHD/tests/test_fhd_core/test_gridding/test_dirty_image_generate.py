@@ -150,8 +150,8 @@ def test_dirty_eight(data_dir):
         degpix = degpix, 
         filter = filter
     )
-    assert 1e-14 > np.max(np.abs(expected_dirty_image.real - dirty_image.real))
-    assert 1e-14 > np.max(np.abs(expected_dirty_image.imag - dirty_image.imag))
+    assert 1e-16 > np.max(np.abs(expected_dirty_image.real - dirty_image.real))
+    assert 1e-16 > np.max(np.abs(expected_dirty_image.imag - dirty_image.imag))
 
 def test_dirty_nine(data_dir):
     dirty_image_uv, filter, image_filter_fn, obs, params, weights, expected_dirty_image = get_data_items(
